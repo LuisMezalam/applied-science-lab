@@ -158,14 +158,9 @@ export function KnowledgeLibrary({ onConceptSelect }: KnowledgeLibraryProps) {
                     </p>
                     {concept.equations.length > 0 && (
                       <div className="equation-box text-xs space-y-1">
-                        {concept.equations.slice(0, 2).map((eq, i) => (
+                        {concept.equations.map((eq, i) => (
                           <div key={i} className="text-primary/80">{eq}</div>
                         ))}
-                        {concept.equations.length > 2 && (
-                          <div className="text-muted-foreground">
-                            +{concept.equations.length - 2} more equations
-                          </div>
-                        )}
                       </div>
                     )}
                   </CardContent>
