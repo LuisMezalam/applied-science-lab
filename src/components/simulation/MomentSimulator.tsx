@@ -1,0 +1,171 @@
+import { useState, useMemo, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { SimulationCanvas } from './SimulationCanvas';
+import { MomentDisplay } from './MomentDisplay';
+import { LoadingControls } from './LoadingControls';
+import { LoadingProfile, LoadingParams, DomainType, IntensityField, MomentResults } from '@/types/physics';
+import { loadingProfiles, profilesByDomain } from '@/lib/physics/loadingProfiles';
+import { generateField, calculateMoments } from '@/lib/physics/momentCalculus';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { RotateCcw, Eye, EyeOff } from 'lucide-react';
+
+export function MomentSimulator() {
+  const [activeDomain, setActiveDomain] = useState<DomainType>('structures');
+  const [selectedProfile, setSelectedProfile] = useState<LoadingProfile>(profilesByDomain.structures[0]);
+  const [params, setParams] = useState<LoadingParams>(profilesByDomain.structures[0].defaultParams);
+  const [showCentroid, setShowCentroid] = useState(true);
+  const [showDispersion, setShowDispersion] = useState(true);
+  const [animated, setAnimated] = useState(true);
+
+  // Generate field and calculate moments
+  const { field, moments } = useMemo(() => {
+    const field = generateField(selectedProfile.generator, params, 300);
+    const moments = calculateMoments(field);
+    return { field, moments };
+  }, [selectedProfile, params]);
+
+  const handleDomainChange = useCallback((domain: DomainType) => {
+    setActiveDomain(domain);
+    const newProfile = profilesByDomain[domain][0];
+    setSelectedProfile(newProfile);
+    setParams(newProfile.defaultParams);
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setParams(selectedProfile.defaultParams);
+  }, [selectedProfile]);
+
+  // Get domain-specific units
+  const units = useMemo(() => {
+    switch (activeDomain) {
+      case 'structures':
+        return { intensity: 'N/m', position: 'm' };
+      case 'heat':
+        return { intensity: 'W/m²', position: 'm' };
+      case 'fluids':
+        return { intensity: 'Pa', position: 'm' };
+    }
+  }, [activeDomain]);
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
+      {/* Left Panel - Controls */}
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.1 }}
+        className="lg:col-span-3 space-y-4"
+      >
+        <Card className="border-border/50 bg-card/80 backdrop-blur">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center justify-between">
+              <span>Loading Configuration</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleReset}
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <LoadingControls
+              selectedProfile={selectedProfile}
+              params={params}
+              onProfileChange={setSelectedProfile}
+              onParamsChange={setParams}
+              activeDomain={activeDomain}
+              onDomainChange={handleDomainChange}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Display Options */}
+        <Card className="border-border/50 bg-card/80 backdrop-blur">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Display Options</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="centroid" className="text-sm">Show Centroid (x̄)</Label>
+              <Switch
+                id="centroid"
+                checked={showCentroid}
+                onCheckedChange={setShowCentroid}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="dispersion" className="text-sm">Show ±σ Region</Label>
+              <Switch
+                id="dispersion"
+                checked={showDispersion}
+                onCheckedChange={setShowDispersion}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="animated" className="text-sm">Animate Glow</Label>
+              <Switch
+                id="animated"
+                checked={animated}
+                onCheckedChange={setAnimated}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Center Panel - Canvas */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="lg:col-span-6"
+      >
+        <Card className="border-border/50 bg-card/80 backdrop-blur h-full">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full bg-${activeDomain}`} />
+              Intensity Field Visualization
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="h-[calc(100%-4rem)]">
+            <SimulationCanvas
+              field={field}
+              moments={moments}
+              domain={activeDomain}
+              showCentroid={showCentroid}
+              showDispersion={showDispersion}
+              animated={animated}
+            />
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Right Panel - Moment Results */}
+      <motion.div
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.3 }}
+        className="lg:col-span-3"
+      >
+        <Card className="border-border/50 bg-card/80 backdrop-blur">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Moment Analysis</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <MomentDisplay
+              moments={moments}
+              domain={activeDomain}
+              units={units}
+            />
+          </CardContent>
+        </Card>
+      </motion.div>
+    </div>
+  );
+}
