@@ -3,14 +3,16 @@ import { Button } from '@/components/ui/button';
 import { 
   Atom, 
   BookOpen, 
-  FlaskConical, 
-  Github, 
-  ChevronDown 
+  FlaskConical,
+  Square,
+  Box
 } from 'lucide-react';
 
+export type ActiveTab = 'simulator' | 'surface2d' | 'volume3d' | 'library';
+
 interface HeaderProps {
-  activeTab: 'simulator' | 'library';
-  onTabChange: (tab: 'simulator' | 'library') => void;
+  activeTab: ActiveTab;
+  onTabChange: (tab: ActiveTab) => void;
 }
 
 export function Header({ activeTab, onTabChange }: HeaderProps) {
@@ -49,7 +51,25 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
               className="gap-2"
             >
               <FlaskConical className="h-4 w-4" />
-              <span className="hidden sm:inline">Simulator</span>
+              <span className="hidden sm:inline">1D</span>
+            </Button>
+            <Button
+              variant={activeTab === 'surface2d' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => onTabChange('surface2d')}
+              className="gap-2"
+            >
+              <Square className="h-4 w-4" />
+              <span className="hidden sm:inline">2D</span>
+            </Button>
+            <Button
+              variant={activeTab === 'volume3d' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => onTabChange('volume3d')}
+              className="gap-2"
+            >
+              <Box className="h-4 w-4" />
+              <span className="hidden sm:inline">3D</span>
             </Button>
             <Button
               variant={activeTab === 'library' ? 'secondary' : 'ghost'}
