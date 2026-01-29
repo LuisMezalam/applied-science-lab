@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Header } from '@/components/layout/Header';
+import { Header, ActiveTab } from '@/components/layout/Header';
 import { MomentSimulator } from '@/components/simulation/MomentSimulator';
+import { Surface2DSimulator } from '@/components/simulation/Surface2DSimulator';
+import { Volume3DSimulator } from '@/components/simulation/Volume3DSimulator';
 import { KnowledgeLibrary } from '@/components/knowledge/KnowledgeLibrary';
-import { Card, CardContent } from '@/components/ui/card';
 import { Atom, ArrowRight, Layers, TrendingUp, Binary } from 'lucide-react';
 import heroImage from '@/assets/hero-physics.jpg';
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<'simulator' | 'library'>('simulator');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('simulator');
   const [showHero, setShowHero] = useState(true);
 
   return (
@@ -127,7 +128,7 @@ const Index = () => {
 
         {/* Main Content */}
         <AnimatePresence mode="wait">
-          {activeTab === 'simulator' ? (
+          {activeTab === 'simulator' && (
             <motion.div
               key="simulator"
               initial={{ opacity: 0 }}
@@ -137,7 +138,30 @@ const Index = () => {
             >
               <MomentSimulator />
             </motion.div>
-          ) : (
+          )}
+          {activeTab === 'surface2d' && (
+            <motion.div
+              key="surface2d"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="min-h-[600px]"
+            >
+              <Surface2DSimulator />
+            </motion.div>
+          )}
+          {activeTab === 'volume3d' && (
+            <motion.div
+              key="volume3d"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="min-h-[600px]"
+            >
+              <Volume3DSimulator />
+            </motion.div>
+          )}
+          {activeTab === 'library' && (
             <motion.div
               key="library"
               initial={{ opacity: 0 }}
