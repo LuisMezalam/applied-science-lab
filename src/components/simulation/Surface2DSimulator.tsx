@@ -313,21 +313,21 @@ export function Surface2DSimulator() {
               label="Ixx (about ȳ)"
               value={moments.Ixx}
               unit="kN·m²"
-              description="∬ y²·I dA"
+              description="∬(y-ȳ)²·I dA"
               closedForm={closedForm?.Ixx}
             />
             <MomentCard
               label="Iyy (about x̄)"
               value={moments.Iyy}
               unit="kN·m²"
-              description="∬ x²·I dA"
+              description="∬(x-x̄)²·I dA"
               closedForm={closedForm?.Iyy}
             />
             <MomentCard
               label="Ixy (product)"
               value={moments.Ixy}
               unit="kN·m²"
-              description="∬ xy·I dA"
+              description="∬(x-x̄)(y-ȳ)·I dA"
               closedForm={closedForm?.Ixy}
             />
             <MomentCard

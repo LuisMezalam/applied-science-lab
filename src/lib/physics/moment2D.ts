@@ -216,7 +216,9 @@ export function calculate2DMoments(points: Point2D[], shape: Shape2D, params: Sh
   const I2 = avg - discriminant;
   
   // Principal axis angle
-  const theta = Ixy !== 0 ? 0.5 * Math.atan2(-2 * Ixy, Ixx - Iyy) : 0;
+  // Principal axis angle: tan(2θ) = -2Ixy / (Ixx - Iyy)
+  // Using atan2 with correct sign convention for counterclockwise positive
+  const theta = Math.abs(Ixy) > 1e-10 ? 0.5 * Math.atan2(-2 * Ixy, Ixx - Iyy) : 0;
   
   // Radius of gyration
   const kx = I0 > 0 ? Math.sqrt(Ixx / I0) : 0;
@@ -244,16 +246,24 @@ export function getClosedFormMoments(params: Shape2DParams): Moment2DResults | n
       const h = params.height || 1;
       const I0 = mag * w * h;
       // For rectangle centered at origin with uniform load
+      // Ixx = ∬(y-ȳ)²·I dA = I₀·h²/12 (second moment about centroidal x-axis)
+      // Iyy = ∬(x-x̄)²·I dA = I₀·w²/12 (second moment about centroidal y-axis)
+      const Ixx = I0 * h * h / 12;
+      const Iyy = I0 * w * w / 12;
+      // Principal moments: for symmetric shapes with Ixy=0, I1=max(Ixx,Iyy), I2=min(Ixx,Iyy)
+      const I1 = Math.max(Ixx, Iyy);
+      const I2 = Math.min(Ixx, Iyy);
       return {
         I0,
         centroidX: 0,
         centroidY: 0,
-        Ixx: mag * w * h * h * h / 12,
-        Iyy: mag * h * w * w * w / 12,
+        Ixx,
+        Iyy,
         Ixy: 0,
-        I1: mag * w * h * h * h / 12,
-        I2: mag * h * w * w * w / 12,
+        I1,
+        I2,
         theta: 0,
+        // Radius of gyration: k = √(I/I₀) where I is second moment
         kx: h / Math.sqrt(12),
         ky: w / Math.sqrt(12)
       };
@@ -261,7 +271,9 @@ export function getClosedFormMoments(params: Shape2DParams): Moment2DResults | n
     case 'circle': {
       const r = params.radius || 1;
       const I0 = mag * Math.PI * r * r;
-      const Ixx = mag * Math.PI * r * r * r * r / 4;
+      // For circle: Ixx = Iyy = I₀·r²/4 (second moment about centroidal axes)
+      // Note: This is I₀·r²/4, not πr⁴/4 (which is the geometric second moment of area)
+      const Ixx = I0 * r * r / 4;
       return {
         I0,
         centroidX: 0,
@@ -272,6 +284,7 @@ export function getClosedFormMoments(params: Shape2DParams): Moment2DResults | n
         I1: Ixx,
         I2: Ixx,
         theta: 0,
+        // Radius of gyration: k = √(Ixx/I₀) = r/2
         kx: r / 2,
         ky: r / 2
       };
@@ -280,17 +293,24 @@ export function getClosedFormMoments(params: Shape2DParams): Moment2DResults | n
       const b = params.base || 2;
       const h = params.height || 1.5;
       const I0 = mag * 0.5 * b * h;
-      // Centroid at (0, h/3) for triangle with base on x-axis and apex at (0, h)
+      // Centroid at (0, h/3) for triangle with base centered on x-axis and apex at (0, h)
+      // Ixx about centroid = I₀·h²/18 for triangle
+      // Iyy about centroid = I₀·b²/24 for triangle
+      const Ixx = I0 * h * h / 18;
+      const Iyy = I0 * b * b / 24;
+      const I1 = Math.max(Ixx, Iyy);
+      const I2 = Math.min(Ixx, Iyy);
       return {
         I0,
         centroidX: 0,
         centroidY: h / 3,
-        Ixx: mag * b * h * h * h / 36,
-        Iyy: mag * h * b * b * b / 48,
+        Ixx,
+        Iyy,
         Ixy: 0,
-        I1: mag * b * h * h * h / 36,
-        I2: mag * h * b * b * b / 48,
+        I1,
+        I2,
         theta: 0,
+        // Radius of gyration: kx = √(Ixx/I₀) = h/√18, ky = √(Iyy/I₀) = b/√24
         kx: h / Math.sqrt(18),
         ky: b / Math.sqrt(24)
       };
