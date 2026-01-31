@@ -43,7 +43,7 @@ export function Surface2DSimulator() {
   });
 
   const { points, moments, closedForm } = useMemo(() => {
-    const pts = generate2DField(params, 40);
+    const pts = generate2DField(params, 80); // Higher resolution for better accuracy
     const mom = calculate2DMoments(pts, params.shape, params);
     const closed = getClosedFormMoments(params);
     return { points: pts, moments: mom, closedForm: closed };
