@@ -1,6 +1,6 @@
 // Physics simulation types for Unified Moment Calculus
 
-export type DomainType = 'structures' | 'heat' | 'fluids';
+export type DomainType = 'structures' | 'heat' | 'fluids' | 'dynamics' | 'circuits' | 'propulsion';
 
 export interface IntensityField {
   // The intensity function I(x) evaluated at discrete points
