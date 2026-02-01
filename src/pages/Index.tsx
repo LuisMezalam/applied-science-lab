@@ -67,9 +67,9 @@ const Index = () => {
                       transition={{ delay: 0.4 }}
                       className="text-muted-foreground mb-6 max-w-lg"
                     >
-                      Interactive simulations connecting statistical moments with mechanical 
-                      moments in structures, heat transfer, and fluid dynamics. Rigorous 
-                      physics-based calculations following the n-moment ladder.
+                      Interactive simulations demonstrating that structures, fluids, heat transfer, 
+                      propulsion, dynamics, and circuits are fundamentally the same mathematical object—a 
+                      nonnegative intensity field on a domain with moment ladder analysis.
                     </motion.p>
 
                     <motion.div
@@ -103,8 +103,8 @@ const Index = () => {
                   >
                     <FeatureCard
                       icon={<Layers className="h-5 w-5" />}
-                      title="Cross-Domain"
-                      description="Structures, heat, fluids unified"
+                      title="Cross-Domain Unity"
+                      description="Structures, heat, fluids, dynamics, circuits"
                       color="structures"
                     />
                     <FeatureCard
@@ -178,7 +178,7 @@ const Index = () => {
       <footer className="border-t border-border/50 mt-12">
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-            <p>Based on "A Unified Moment Calculus for Engineers" • Working Draft 2026</p>
+            <p>Based on "A Total Unification of Engineering Loads via Moment Calculus" • Feb 2026</p>
             <p className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-success" />
               Physics Engine v1.0
