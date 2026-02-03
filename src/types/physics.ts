@@ -30,6 +30,23 @@ export interface MomentResults {
   kurtosis: number;
 }
 
+export interface NegativeOrderMoments {
+  // Regularization parameter ε (resolution scale)
+  epsilon: number;
+  // Raw inverse moment m₋₁,ε = ∫(x² + ε²)^(-1/2) f(x) dx
+  rawInverseMoment1: number;
+  // Raw inverse moment m₋₂,ε = ∫(x² + ε²)^(-1) f(x) dx
+  rawInverseMoment2: number;
+  // Central inverse moment μ₋₁,ε = ∫(r² + ε²)^(-1/2) f(x) dx
+  centralInverseMoment1: number;
+  // Central inverse moment μ₋₂,ε = ∫(r² + ε²)^(-1) f(x) dx
+  centralInverseMoment2: number;
+  // Effective width from inverse moment: w_eff = μ₋₁,ε^(-1)
+  effectiveWidth1: number;
+  // Effective width from second inverse: w_eff² = μ₋₂,ε^(-1/2)
+  effectiveWidth2: number;
+}
+
 export interface LoadingProfile {
   id: string;
   name: string;

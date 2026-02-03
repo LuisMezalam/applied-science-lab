@@ -1,7 +1,7 @@
 // Unified Moment Calculus Engine
-// Implements the mathematical framework from the PDF
+// Implements the mathematical framework from "A Total Unification of Engineering Loads via Moment Calculus"
 
-import { IntensityField, MomentResults, LoadingParams } from '@/types/physics';
+import { IntensityField, MomentResults, NegativeOrderMoments, LoadingParams } from '@/types/physics';
 
 /**
  * Numerical integration using the trapezoidal rule
@@ -118,9 +118,88 @@ export function calculateMoments(field: IntensityField): MomentResults {
 }
 
 /**
+ * Calculate negative-order moments with ε regularization
+ * From Section 4 of the paper:
+ * - Raw inverse moments: m₋ₖ,ε = ∫(x² + ε²)^(-k/2) f(x) dx
+ * - Central inverse moments: μ₋ₖ,ε = ∫(r² + ε²)^(-k/2) f(x) dx where r = x - x̄
+ * - ε is the resolution/regularization scale (sensor footprint, mesh size, etc.)
+ */
+export function calculateNegativeOrderMoments(
+  field: IntensityField,
+  centroid: number,
+  zerothMoment: number,
+  epsilon: number = 0.01
+): NegativeOrderMoments {
+  const { values, positions } = field;
+  
+  if (zerothMoment === 0 || epsilon <= 0) {
+    return {
+      epsilon,
+      rawInverseMoment1: 0,
+      rawInverseMoment2: 0,
+      centralInverseMoment1: 0,
+      centralInverseMoment2: 0,
+      effectiveWidth1: Infinity,
+      effectiveWidth2: Infinity,
+    };
+  }
+  
+  // Normalized density: f(x) = I(x)/I₀
+  const normalizedDensity = values.map(v => v / zerothMoment);
+  
+  // Raw inverse moment of order -1: m₋₁,ε = ∫(x² + ε²)^(-1/2) f(x) dx
+  const rawInverse1Values = normalizedDensity.map((f, i) => {
+    const x = positions[i];
+    return Math.pow(x * x + epsilon * epsilon, -0.5) * f;
+  });
+  const rawInverseMoment1 = integrate(rawInverse1Values, positions);
+  
+  // Raw inverse moment of order -2: m₋₂,ε = ∫(x² + ε²)^(-1) f(x) dx
+  const rawInverse2Values = normalizedDensity.map((f, i) => {
+    const x = positions[i];
+    return Math.pow(x * x + epsilon * epsilon, -1) * f;
+  });
+  const rawInverseMoment2 = integrate(rawInverse2Values, positions);
+  
+  // Central inverse moment of order -1: μ₋₁,ε = ∫(r² + ε²)^(-1/2) f(x) dx
+  const centralInverse1Values = normalizedDensity.map((f, i) => {
+    const r = positions[i] - centroid;
+    return Math.pow(r * r + epsilon * epsilon, -0.5) * f;
+  });
+  const centralInverseMoment1 = integrate(centralInverse1Values, positions);
+  
+  // Central inverse moment of order -2: μ₋₂,ε = ∫(r² + ε²)^(-1) f(x) dx
+  const centralInverse2Values = normalizedDensity.map((f, i) => {
+    const r = positions[i] - centroid;
+    return Math.pow(r * r + epsilon * epsilon, -1) * f;
+  });
+  const centralInverseMoment2 = integrate(centralInverse2Values, positions);
+  
+  // Effective widths (inverse of inverse moments raised to appropriate power)
+  // w_eff(k,ε) = μ₋ₖ,ε^(-1/k)
+  const effectiveWidth1 = centralInverseMoment1 > 0 
+    ? Math.pow(centralInverseMoment1, -1) 
+    : Infinity;
+  const effectiveWidth2 = centralInverseMoment2 > 0 
+    ? Math.pow(centralInverseMoment2, -0.5) 
+    : Infinity;
+  
+  return {
+    epsilon,
+    rawInverseMoment1,
+    rawInverseMoment2,
+    centralInverseMoment1,
+    centralInverseMoment2,
+    effectiveWidth1,
+    effectiveWidth2,
+  };
+}
+
+/**
  * Format a number with appropriate precision for display
  */
 export function formatValue(value: number, precision: number = 4): string {
+  if (!isFinite(value)) return '∞';
   if (Math.abs(value) < 1e-10) return '0';
   if (Math.abs(value) >= 1000 || Math.abs(value) < 0.01) {
     return value.toExponential(precision - 1);
@@ -137,16 +216,37 @@ export function getMomentInterpretation(domain: string, momentType: string): str
       zeroth: 'Total Force (Resultant)',
       centroid: 'Point of Application',
       second: 'Force-weighted Inertia',
+      negativeOrder: 'Load Concentration Index',
     },
     heat: {
       zeroth: 'Total Heating Power',
       centroid: 'Center of Heating',
       second: 'Spatial Nonuniformity',
+      negativeOrder: 'Hotspot Localization',
     },
     fluids: {
       zeroth: 'Pressure Resultant',
       centroid: 'Center of Pressure',
       second: 'Pressure Distribution Spread',
+      negativeOrder: 'Pressure Concentration',
+    },
+    dynamics: {
+      zeroth: 'Force Impulse',
+      centroid: 'Temporal Center',
+      second: 'Temporal Spread',
+      negativeOrder: 'Impact Localization',
+    },
+    circuits: {
+      zeroth: 'Total Power Dissipation',
+      centroid: 'Power Center (graph)',
+      second: 'Power Distribution',
+      negativeOrder: 'Hotspot Intensity',
+    },
+    propulsion: {
+      zeroth: 'Total Thrust',
+      centroid: 'Thrust Center',
+      second: 'Thrust Nonuniformity',
+      negativeOrder: 'Thrust Concentration',
     },
   };
   
