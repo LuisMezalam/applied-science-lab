@@ -1,9 +1,11 @@
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { KnowledgeConcept } from '@/types/physics';
+import { KnowledgeConcept, DomainType } from '@/types/physics';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { BookOpen, Beaker, Lightbulb, Building2, Flame, Droplets, Calculator, Zap, Activity, CheckCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { BookOpen, Beaker, Lightbulb, Building2, Flame, Droplets, Calculator, Zap, Activity, CheckCircle, Search, X, Rocket } from 'lucide-react';
 
 // Knowledge base from "A Total Unification of Engineering Loads via Moment Calculus" (Feb 2026)
 const initialConcepts: KnowledgeConcept[] = [
@@ -553,7 +555,63 @@ interface KnowledgeLibraryProps {
   onConceptSelect?: (concept: KnowledgeConcept) => void;
 }
 
+type CategoryType = 'theory' | 'application' | 'example';
+type FilterDomain = DomainType | 'unified' | 'all';
+type FilterCategory = CategoryType | 'all';
+
+const allDomains: { value: FilterDomain; label: string; icon: React.ElementType }[] = [
+  { value: 'all', label: 'All Domains', icon: Calculator },
+  { value: 'unified', label: 'Unified', icon: Calculator },
+  { value: 'structures', label: 'Structures', icon: Building2 },
+  { value: 'heat', label: 'Heat', icon: Flame },
+  { value: 'fluids', label: 'Fluids', icon: Droplets },
+  { value: 'dynamics', label: 'Dynamics', icon: Activity },
+  { value: 'circuits', label: 'Circuits', icon: Zap },
+  { value: 'propulsion', label: 'Propulsion', icon: Rocket },
+];
+
+const allCategories: { value: FilterCategory; label: string; icon: React.ElementType }[] = [
+  { value: 'all', label: 'All', icon: CheckCircle },
+  { value: 'theory', label: 'Theory', icon: BookOpen },
+  { value: 'application', label: 'Application', icon: Beaker },
+  { value: 'example', label: 'Example', icon: Lightbulb },
+];
+
 export function KnowledgeLibrary({ onConceptSelect }: KnowledgeLibraryProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDomain, setSelectedDomain] = useState<FilterDomain>('all');
+  const [selectedCategory, setSelectedCategory] = useState<FilterCategory>('all');
+
+  const filteredConcepts = useMemo(() => {
+    return initialConcepts.filter(concept => {
+      // Domain filter
+      if (selectedDomain !== 'all' && concept.domain !== selectedDomain) {
+        return false;
+      }
+      // Category filter
+      if (selectedCategory !== 'all' && concept.category !== selectedCategory) {
+        return false;
+      }
+      // Search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const matchesTitle = concept.title.toLowerCase().includes(query);
+        const matchesContent = concept.content.toLowerCase().includes(query);
+        const matchesEquations = concept.equations.some(eq => eq.toLowerCase().includes(query));
+        return matchesTitle || matchesContent || matchesEquations;
+      }
+      return true;
+    });
+  }, [searchQuery, selectedDomain, selectedCategory]);
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedDomain('all');
+    setSelectedCategory('all');
+  };
+
+  const hasActiveFilters = searchQuery || selectedDomain !== 'all' || selectedCategory !== 'all';
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -564,58 +622,136 @@ export function KnowledgeLibrary({ onConceptSelect }: KnowledgeLibraryProps) {
           </p>
         </div>
         <Badge variant="outline" className="text-xs">
-          {initialConcepts.length} concepts loaded
+          {filteredConcepts.length} / {initialConcepts.length} concepts
         </Badge>
       </div>
 
-      <ScrollArea className="h-[calc(100vh-16rem)]">
-        <div className="space-y-3 pr-4">
-          {initialConcepts.map((concept, index) => {
-            const CategoryIcon = categoryIcons[concept.category];
-            const DomainIcon = domainIcons[concept.domain as keyof typeof domainIcons] || Calculator;
-            const colorClass = domainColors[concept.domain as keyof typeof domainColors] || domainColors.unified;
+      {/* Search and Filters */}
+      <div className="space-y-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search concepts, equations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-9"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
 
-            return (
-              <motion.div
-                key={concept.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.03 }}
-              >
-                <Card
-                  className="border-border/50 bg-card/60 backdrop-blur cursor-pointer hover:bg-card/80 transition-colors"
-                  onClick={() => onConceptSelect?.(concept)}
+        {/* Domain Filter */}
+        <div className="flex flex-wrap gap-2">
+          <span className="text-xs text-muted-foreground self-center mr-1">Domain:</span>
+          {allDomains.map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              onClick={() => setSelectedDomain(value)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                selectedDomain === value
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+              }`}
+            >
+              <Icon className="h-3 w-3" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Category Filter */}
+        <div className="flex flex-wrap gap-2">
+          <span className="text-xs text-muted-foreground self-center mr-1">Category:</span>
+          {allCategories.map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              onClick={() => setSelectedCategory(value)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                selectedCategory === value
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+              }`}
+            >
+              <Icon className="h-3 w-3" />
+              {label}
+            </button>
+          ))}
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors ml-2"
+            >
+              <X className="h-3 w-3" />
+              Clear All
+            </button>
+          )}
+        </div>
+      </div>
+
+      <ScrollArea className="h-[calc(100vh-22rem)]">
+        <div className="space-y-3 pr-4">
+          {filteredConcepts.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>No concepts found matching your filters.</p>
+              <button onClick={clearFilters} className="text-primary hover:underline text-sm mt-2">
+                Clear filters
+              </button>
+            </div>
+          ) : (
+            filteredConcepts.map((concept, index) => {
+              const CategoryIcon = categoryIcons[concept.category];
+              const DomainIcon = domainIcons[concept.domain as keyof typeof domainIcons] || Calculator;
+              const colorClass = domainColors[concept.domain as keyof typeof domainColors] || domainColors.unified;
+
+              return (
+                <motion.div
+                  key={concept.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.02 }}
                 >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className={`p-1.5 rounded ${colorClass}`}>
-                          <DomainIcon className="h-3.5 w-3.5" />
+                  <Card
+                    className="border-border/50 bg-card/60 backdrop-blur cursor-pointer hover:bg-card/80 transition-colors"
+                    onClick={() => onConceptSelect?.(concept)}
+                  >
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className={`p-1.5 rounded ${colorClass}`}>
+                            <DomainIcon className="h-3.5 w-3.5" />
+                          </div>
+                          <CardTitle className="text-sm font-medium">{concept.title}</CardTitle>
                         </div>
-                        <CardTitle className="text-sm font-medium">{concept.title}</CardTitle>
+                        <Badge variant="secondary" className="text-xs shrink-0">
+                          <CategoryIcon className="h-3 w-3 mr-1" />
+                          {concept.category}
+                        </Badge>
                       </div>
-                      <Badge variant="secondary" className="text-xs shrink-0">
-                        <CategoryIcon className="h-3 w-3 mr-1" />
-                        {concept.category}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="text-xs text-muted-foreground mb-3">
-                      {concept.content}
-                    </p>
-                    {concept.equations.length > 0 && (
-                      <div className="equation-box text-xs space-y-1">
-                        {concept.equations.map((eq, i) => (
-                          <div key={i} className="text-primary/80">{eq}</div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <p className="text-xs text-muted-foreground mb-3">
+                        {concept.content}
+                      </p>
+                      {concept.equations.length > 0 && (
+                        <div className="equation-box text-xs space-y-1">
+                          {concept.equations.map((eq, i) => (
+                            <div key={i} className="text-primary/80">{eq}</div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })
+          )}
         </div>
       </ScrollArea>
     </div>
