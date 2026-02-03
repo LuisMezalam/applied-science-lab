@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
-import { MomentResults, DomainType } from '@/types/physics';
+import { MomentResults, NegativeOrderMoments, DomainType } from '@/types/physics';
 import { formatValue, getMomentInterpretation } from '@/lib/physics/momentCalculus';
-import { Info } from 'lucide-react';
+import { Info, AlertTriangle } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -10,6 +10,7 @@ import {
 
 interface MomentDisplayProps {
   moments: MomentResults;
+  negativeOrderMoments?: NegativeOrderMoments;
   domain: DomainType;
   units?: {
     intensity: string;
@@ -98,7 +99,7 @@ function MomentCard({
   );
 }
 
-export function MomentDisplay({ moments, domain, units }: MomentDisplayProps) {
+export function MomentDisplay({ moments, negativeOrderMoments, domain, units }: MomentDisplayProps) {
   const posUnit = units?.position || 'm';
   const intUnit = units?.intensity || 'N/m';
 
@@ -200,6 +201,92 @@ export function MomentDisplay({ moments, domain, units }: MomentDisplayProps) {
           />
         </div>
       </div>
+
+      {/* Negative-Order Moments Section (ε-regularized) */}
+      {negativeOrderMoments && (
+        <div>
+          <h3 className="text-sm font-medium text-foreground/80 mb-3 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-warning" />
+            Negative-Order Moments (ε-Regularized)
+            <Tooltip>
+              <TooltipTrigger>
+                <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p className="text-xs">
+                  Inverse-power moments diverge at singularities. The ε parameter acts as a 
+                  resolution scale (sensor footprint, mesh size) to regularize the calculation.
+                  Always report ε when using these metrics.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </h3>
+          
+          <div className="mb-2 px-2 py-1.5 rounded bg-warning/10 border border-warning/20 text-xs text-warning-foreground">
+            ε = {formatValue(negativeOrderMoments.epsilon)} {posUnit} (resolution scale)
+          </div>
+          
+          <div className="grid gap-2">
+            <MomentCard
+              label="Central μ₋₁,ε"
+              value={negativeOrderMoments.centralInverseMoment1}
+              symbol="μ₋₁"
+              interpretation={getMomentInterpretation(domain, 'negativeOrder')}
+              unit={`${posUnit}⁻¹`}
+              tooltip="∫(r² + ε²)^(-1/2) f(x) dx - measures concentration about centroid"
+            />
+            
+            <MomentCard
+              label="Central μ₋₂,ε"
+              value={negativeOrderMoments.centralInverseMoment2}
+              symbol="μ₋₂"
+              interpretation="Stronger localization"
+              unit={`${posUnit}⁻²`}
+              tooltip="∫(r² + ε²)^(-1) f(x) dx - higher sensitivity to centering"
+            />
+            
+            <div className="grid grid-cols-2 gap-2">
+              <MomentCard
+                label="Effective Width 1"
+                value={negativeOrderMoments.effectiveWidth1}
+                symbol="w₁"
+                interpretation="From μ₋₁,ε"
+                unit={posUnit}
+                tooltip="w_eff = μ₋₁,ε^(-1) - characteristic width from first inverse moment"
+              />
+              
+              <MomentCard
+                label="Effective Width 2"
+                value={negativeOrderMoments.effectiveWidth2}
+                symbol="w₂"
+                interpretation="From μ₋₂,ε"
+                unit={posUnit}
+                tooltip="w_eff = μ₋₂,ε^(-1/2) - characteristic width from second inverse moment"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2">
+              <MomentCard
+                label="Raw m₋₁,ε"
+                value={negativeOrderMoments.rawInverseMoment1}
+                symbol="m₋₁"
+                interpretation="From origin"
+                unit={`${posUnit}⁻¹`}
+                tooltip="∫(x² + ε²)^(-1/2) f(x) dx - inverse moment about origin"
+              />
+              
+              <MomentCard
+                label="Raw m₋₂,ε"
+                value={negativeOrderMoments.rawInverseMoment2}
+                symbol="m₋₂"
+                interpretation="From origin"
+                unit={`${posUnit}⁻²`}
+                tooltip="∫(x² + ε²)^(-1) f(x) dx - second inverse moment about origin"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
