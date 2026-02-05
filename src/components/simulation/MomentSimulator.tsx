@@ -26,6 +26,7 @@ export function MomentSimulator() {
   const [showDispersion, setShowDispersion] = useState(true);
   const [animated, setAnimated] = useState(true);
   const [showNegativeOrder, setShowNegativeOrder] = useState(true);
+  const [showEffectiveWidth, setShowEffectiveWidth] = useState(true);
   const [epsilon, setEpsilon] = useState(0.05); // Default 5% of domain length
 
   // Generate field and calculate moments
@@ -160,6 +161,16 @@ export function MomentSimulator() {
               />
             </div>
             
+            <div className="flex items-center justify-between">
+              <Label htmlFor="effWidth" className="text-sm">Show w_eff on Canvas</Label>
+              <Switch
+                id="effWidth"
+                checked={showEffectiveWidth}
+                onCheckedChange={setShowEffectiveWidth}
+                disabled={!showNegativeOrder}
+              />
+            </div>
+            
             {showNegativeOrder && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -206,6 +217,8 @@ export function MomentSimulator() {
               domain={activeDomain}
               showCentroid={showCentroid}
               showDispersion={showDispersion}
+              showEffectiveWidth={showNegativeOrder && showEffectiveWidth}
+              negativeOrderMoments={negativeOrderMoments}
               animated={animated}
             />
           </CardContent>

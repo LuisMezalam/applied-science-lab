@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { IntensityField, MomentResults, DomainType } from '@/types/physics';
+import { IntensityField, MomentResults, DomainType, NegativeOrderMoments } from '@/types/physics';
 
 interface SimulationCanvasProps {
   field: IntensityField;
@@ -8,6 +8,8 @@ interface SimulationCanvasProps {
   domain: DomainType;
   showCentroid?: boolean;
   showDispersion?: boolean;
+  showEffectiveWidth?: boolean;
+  negativeOrderMoments?: NegativeOrderMoments;
   animated?: boolean;
 }
 
@@ -23,6 +25,8 @@ export function SimulationCanvas({
   domain,
   showCentroid = true,
   showDispersion = true,
+  showEffectiveWidth = false,
+  negativeOrderMoments,
   animated = true,
 }: SimulationCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -31,7 +35,7 @@ export function SimulationCanvas({
 
   const colors = domainColors[domain];
 
-  const draw = useCallback((ctx: CanvasRenderingContext2D, time: number) => {
+  const draw = useCallback((ctx: CanvasRenderingContext2D, time: number, negMoments?: NegativeOrderMoments) => {
     const canvas = ctx.canvas;
     const width = canvas.width;
     const height = canvas.height;
@@ -163,6 +167,58 @@ export function SimulationCanvas({
       ctx.setLineDash([]);
     }
 
+    // Draw effective width region (from negative-order moments)
+    if (showEffectiveWidth && negMoments && negMoments.effectiveWidth2 < Infinity && moments.zerothMoment > 0) {
+      const wEff = negMoments.effectiveWidth2;
+      const leftBound = xScale(Math.max(domainStart, moments.centroid - wEff / 2));
+      const rightBound = xScale(Math.min(domainEnd, moments.centroid + wEff / 2));
+      
+      // Fill region with cyan/teal color
+      ctx.fillStyle = 'rgba(34, 211, 238, 0.12)';
+      ctx.fillRect(leftBound, padding.top, rightBound - leftBound, plotHeight);
+      
+      // Draw w_eff boundary lines
+      ctx.strokeStyle = '#22D3EE';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 3]);
+      
+      const wEffLeft = moments.centroid - wEff / 2;
+      const wEffRight = moments.centroid + wEff / 2;
+      
+      [wEffLeft, wEffRight].forEach(x => {
+        if (x >= domainStart && x <= domainEnd) {
+          const px = xScale(x);
+          ctx.beginPath();
+          ctx.moveTo(px, padding.top);
+          ctx.lineTo(px, height - padding.bottom);
+          ctx.stroke();
+        }
+      });
+      ctx.setLineDash([]);
+
+      // Draw w_eff label with bracket
+      const labelY = padding.top + 20;
+      const leftPx = xScale(Math.max(domainStart, wEffLeft));
+      const rightPx = xScale(Math.min(domainEnd, wEffRight));
+      const midX = (leftPx + rightPx) / 2;
+      
+      // Bracket lines
+      ctx.strokeStyle = '#22D3EE';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(leftPx, labelY);
+      ctx.lineTo(leftPx, labelY - 8);
+      ctx.lineTo(rightPx, labelY - 8);
+      ctx.lineTo(rightPx, labelY);
+      ctx.stroke();
+      
+      // w_eff label
+      ctx.font = '11px JetBrains Mono';
+      ctx.fillStyle = '#22D3EE';
+      ctx.textAlign = 'center';
+      ctx.fillText(`w_eff = ${wEff.toFixed(3)}`, midX, labelY - 12);
+    }
+
     // Draw axes
     ctx.strokeStyle = 'hsl(210, 40%, 70%)';
     ctx.lineWidth = 1.5;
@@ -218,7 +274,7 @@ export function SimulationCanvas({
     const domainLabel = domain.charAt(0).toUpperCase() + domain.slice(1);
     ctx.fillText(domainLabel, width - padding.right - 70, padding.top - 15);
 
-  }, [field, moments, domain, colors, showCentroid, showDispersion, animated]);
+  }, [field, moments, domain, colors, showCentroid, showDispersion, showEffectiveWidth, animated]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -239,7 +295,7 @@ export function SimulationCanvas({
     if (animated) {
       const animate = () => {
         timeRef.current += 16;
-        draw(ctx, timeRef.current);
+        draw(ctx, timeRef.current, negativeOrderMoments);
         animationRef.current = requestAnimationFrame(animate);
       };
       animate();
@@ -250,9 +306,9 @@ export function SimulationCanvas({
         }
       };
     } else {
-      draw(ctx, 0);
+      draw(ctx, 0, negativeOrderMoments);
     }
-  }, [draw, animated]);
+  }, [draw, animated, negativeOrderMoments]);
 
   // Redraw on resize
   useEffect(() => {
@@ -271,7 +327,7 @@ export function SimulationCanvas({
       canvas.style.width = `${rect.width}px`;
       canvas.style.height = `${rect.height}px`;
       
-      draw(ctx, timeRef.current);
+      draw(ctx, timeRef.current, negativeOrderMoments);
     };
 
     window.addEventListener('resize', handleResize);
