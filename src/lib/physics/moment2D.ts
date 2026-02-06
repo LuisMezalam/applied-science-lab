@@ -36,6 +36,27 @@ export interface Moment2DResults {
   ky: number;
 }
 
+export interface NegativeOrder2DMoments {
+  // Regularization parameter ε
+  epsilon: number;
+  // Inverse moment tensor components (2x2 symmetric)
+  // μ₋₂,ε = ∬ (r² + ε²)⁻¹ f(x,y) dA where r² = (x-x̄)² + (y-ȳ)²
+  mu_inv_scalar: number;
+  // Directional inverse moments
+  // μ₋₂,xx,ε = ∬ ((x-x̄)² + ε²)⁻¹ f(x,y) dA
+  mu_inv_xx: number;
+  // μ₋₂,yy,ε = ∬ ((y-ȳ)² + ε²)⁻¹ f(x,y) dA
+  mu_inv_yy: number;
+  // Principal inverse moments (eigenvalues of inverse tensor)
+  mu_inv_1: number;
+  mu_inv_2: number;
+  theta_inv: number; // Principal axis angle
+  // Effective radii (inverse of inverse moments)
+  effectiveRadiusScalar: number;
+  effectiveRadiusX: number;
+  effectiveRadiusY: number;
+}
+
 export interface Point2D {
   x: number;
   y: number;
@@ -318,4 +339,89 @@ export function getClosedFormMoments(params: Shape2DParams): Moment2DResults | n
     default:
       return null;
   }
+}
+
+/**
+ * Calculate 2D negative-order moments with ε regularization
+ * Extends the 1D concept to 2D inverse moment tensors
+ */
+export function calculate2DNegativeOrderMoments(
+  points: Point2D[],
+  centroidX: number,
+  centroidY: number,
+  I0: number,
+  epsilon: number = 0.1
+): NegativeOrder2DMoments {
+  if (points.length === 0 || I0 === 0 || epsilon <= 0) {
+    return {
+      epsilon,
+      mu_inv_scalar: 0,
+      mu_inv_xx: 0,
+      mu_inv_yy: 0,
+      mu_inv_1: 0,
+      mu_inv_2: 0,
+      theta_inv: 0,
+      effectiveRadiusScalar: Infinity,
+      effectiveRadiusX: Infinity,
+      effectiveRadiusY: Infinity,
+    };
+  }
+
+  // Estimate area element
+  const dA = 1 / points.length; // Normalized since we divide by I0
+
+  let mu_inv_scalar = 0;
+  let mu_inv_xx = 0;
+  let mu_inv_yy = 0;
+  let mu_inv_xy = 0;
+
+  for (const p of points) {
+    const dx = p.x - centroidX;
+    const dy = p.y - centroidY;
+    const r2 = dx * dx + dy * dy;
+    
+    // Normalized density at this point
+    const f = p.intensity / I0;
+    
+    // Scalar inverse moment: μ₋₂,ε = ∬ (r² + ε²)⁻¹ f dA
+    mu_inv_scalar += (1 / (r2 + epsilon * epsilon)) * f * dA;
+    
+    // Directional inverse moments (diagonal terms)
+    mu_inv_xx += (1 / (dx * dx + epsilon * epsilon)) * f * dA;
+    mu_inv_yy += (1 / (dy * dy + epsilon * epsilon)) * f * dA;
+    
+    // Off-diagonal term for tensor (cross term)
+    const denomX = Math.sqrt(dx * dx + epsilon * epsilon);
+    const denomY = Math.sqrt(dy * dy + epsilon * epsilon);
+    mu_inv_xy += (1 / (denomX * denomY)) * f * dA;
+  }
+
+  // Principal inverse moments (eigenvalues of 2x2 tensor [[mu_inv_xx, mu_inv_xy], [mu_inv_xy, mu_inv_yy]])
+  const avg = (mu_inv_xx + mu_inv_yy) / 2;
+  const diff = (mu_inv_xx - mu_inv_yy) / 2;
+  const discriminant = Math.sqrt(diff * diff + mu_inv_xy * mu_inv_xy);
+  
+  const mu_inv_1 = avg + discriminant;
+  const mu_inv_2 = avg - discriminant;
+  const theta_inv = Math.abs(mu_inv_xy) > 1e-10 
+    ? 0.5 * Math.atan2(-2 * mu_inv_xy, mu_inv_xx - mu_inv_yy) 
+    : 0;
+
+  // Effective radii: r_eff = μ₋₂,ε^(-1/2)
+  const effectiveRadiusScalar = mu_inv_scalar > 0 ? Math.pow(mu_inv_scalar, -0.5) : Infinity;
+  const effectiveRadiusX = mu_inv_xx > 0 ? Math.pow(mu_inv_xx, -0.5) : Infinity;
+  const effectiveRadiusY = mu_inv_yy > 0 ? Math.pow(mu_inv_yy, -0.5) : Infinity;
+
+  return {
+    epsilon,
+    mu_inv_scalar,
+    mu_inv_xx,
+    mu_inv_yy,
+    mu_inv_1,
+    mu_inv_2,
+    theta_inv,
+    effectiveRadiusScalar,
+    effectiveRadiusX,
+    effectiveRadiusY,
+  };
 }
