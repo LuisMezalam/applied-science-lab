@@ -6,14 +6,16 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Square, Circle, Triangle } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Square, Circle, Triangle, AlertTriangle } from 'lucide-react';
 import {
   Shape2D,
   Shape2DParams,
   generate2DField,
   calculate2DMoments,
   getClosedFormMoments,
-  Moment2DResults
+  calculate2DNegativeOrderMoments,
+  NegativeOrder2DMoments
 } from '@/lib/physics/moment2D';
 import { formatValue } from '@/lib/physics/momentCalculus';
 
@@ -41,13 +43,34 @@ export function Surface2DSimulator() {
     magnitude: 10,
     loadingType: 'uniform',
   });
+  
+  // Epsilon as percentage of characteristic length
+  const [epsilonPercent, setEpsilonPercent] = useState(5);
+  const [showEffectiveRadius, setShowEffectiveRadius] = useState(true);
 
-  const { points, moments, closedForm } = useMemo(() => {
-    const pts = generate2DField(params, 200); // Higher resolution for <1% error on all second moments
+  // Get characteristic length for epsilon calculation
+  const characteristicLength = useMemo(() => {
+    switch (params.shape) {
+      case 'rectangle':
+        return Math.max(params.width || 2, params.height || 1);
+      case 'circle':
+        return (params.radius || 1) * 2;
+      case 'triangle':
+        return Math.max(params.base || 2, params.height || 1.5);
+      default:
+        return 1;
+    }
+  }, [params]);
+  
+  const epsilon = (epsilonPercent / 100) * characteristicLength;
+
+  const { points, moments, closedForm, negativeOrderMoments } = useMemo(() => {
+    const pts = generate2DField(params, 200);
     const mom = calculate2DMoments(pts, params.shape, params);
     const closed = getClosedFormMoments(params);
-    return { points: pts, moments: mom, closedForm: closed };
-  }, [params]);
+    const negMom = calculate2DNegativeOrderMoments(pts, mom.centroidX, mom.centroidY, mom.I0, epsilon);
+    return { points: pts, moments: mom, closedForm: closed, negativeOrderMoments: negMom };
+  }, [params, epsilon]);
 
   // Find bounds for visualization
   const bounds = useMemo(() => {
@@ -206,6 +229,34 @@ export function Surface2DSimulator() {
               </Select>
             </div>
 
+            {/* Epsilon for negative-order moments */}
+            <div className="space-y-2">
+              <Label>ε (regularization): {epsilonPercent.toFixed(1)}% of L = {epsilon.toFixed(3)} m</Label>
+              <Slider
+                value={[epsilonPercent]}
+                onValueChange={([v]) => setEpsilonPercent(v)}
+                min={0.5}
+                max={20}
+                step={0.5}
+              />
+              {epsilonPercent < 2 && (
+                <div className="flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-500">
+                  <AlertTriangle className="h-3 w-3" />
+                  Small ε amplifies singularity effects
+                </div>
+              )}
+            </div>
+
+            {/* Show effective radius toggle */}
+            <div className="flex items-center justify-between">
+              <Label htmlFor="show-reff" className="text-sm">Show r_eff on canvas</Label>
+              <Switch
+                id="show-reff"
+                checked={showEffectiveRadius}
+                onCheckedChange={setShowEffectiveRadius}
+              />
+            </div>
+
             {/* Magnitude */}
             <div className="space-y-2">
               <Label>Magnitude: {params.magnitude.toFixed(1)} kPa</Label>
@@ -249,6 +300,20 @@ export function Surface2DSimulator() {
                   opacity={0.8}
                 />
               ))}
+
+              {/* Effective radius visualization */}
+              {showEffectiveRadius && isFinite(negativeOrderMoments.effectiveRadiusScalar) && (
+                <ellipse
+                  cx={toSvgX(moments.centroidX)}
+                  cy={toSvgY(moments.centroidY)}
+                  rx={Math.abs(toSvgX(moments.centroidX + negativeOrderMoments.effectiveRadiusX) - toSvgX(moments.centroidX))}
+                  ry={Math.abs(toSvgY(moments.centroidY + negativeOrderMoments.effectiveRadiusY) - toSvgY(moments.centroidY))}
+                  fill="rgba(34, 211, 238, 0.15)"
+                  stroke="rgb(34, 211, 238)"
+                  strokeWidth={2}
+                  strokeDasharray="6,3"
+                />
+              )}
 
               {/* Centroid marker */}
               <g transform={`translate(${toSvgX(moments.centroidX)}, ${toSvgY(moments.centroidY)})`}>
@@ -337,11 +402,93 @@ export function Surface2DSimulator() {
               description="Max eigenvalue"
             />
             <MomentCard
+              label="I₂ (principal)"
+              value={moments.I2}
+              unit="kN·m²"
+              description="Min eigenvalue"
+            />
+            <MomentCard
               label="θ (principal axis)"
               value={moments.theta * 180 / Math.PI}
               unit="°"
               description="Principal angle"
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Negative-Order Moments */}
+      <Card className="border-border/50 bg-card/60 backdrop-blur border-l-4 border-l-cyan-500">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base flex items-center gap-2">
+            <span>2D Inverse Moment Tensor</span>
+            <Badge variant="outline" className="text-xs bg-cyan-500/10 text-cyan-600 border-cyan-500/30">
+              ε = {epsilon.toFixed(3)} m
+            </Badge>
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Regularized inverse moments: μ₋₂,ε = ∬ (r² + ε²)⁻¹ f(x,y) dA
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <MomentCard
+              label="μ₋₂,ε (scalar)"
+              value={negativeOrderMoments.mu_inv_scalar}
+              unit="m⁻²"
+              description="∬(r²+ε²)⁻¹f dA"
+            />
+            <MomentCard
+              label="μ₋₂,xx,ε"
+              value={negativeOrderMoments.mu_inv_xx}
+              unit="m⁻²"
+              description="X-directional"
+            />
+            <MomentCard
+              label="μ₋₂,yy,ε"
+              value={negativeOrderMoments.mu_inv_yy}
+              unit="m⁻²"
+              description="Y-directional"
+            />
+            <MomentCard
+              label="r_eff (scalar)"
+              value={negativeOrderMoments.effectiveRadiusScalar}
+              unit="m"
+              description="μ₋₂,ε^(-1/2)"
+            />
+            <MomentCard
+              label="μ₋₂,₁,ε (principal)"
+              value={negativeOrderMoments.mu_inv_1}
+              unit="m⁻²"
+              description="Max eigenvalue"
+            />
+            <MomentCard
+              label="μ₋₂,₂,ε (principal)"
+              value={negativeOrderMoments.mu_inv_2}
+              unit="m⁻²"
+              description="Min eigenvalue"
+            />
+            <MomentCard
+              label="r_eff,x"
+              value={negativeOrderMoments.effectiveRadiusX}
+              unit="m"
+              description="X effective radius"
+            />
+            <MomentCard
+              label="r_eff,y"
+              value={negativeOrderMoments.effectiveRadiusY}
+              unit="m"
+              description="Y effective radius"
+            />
+          </div>
+          
+          {/* Interpretation */}
+          <div className="mt-4 p-3 rounded-lg bg-cyan-500/5 border border-cyan-500/20">
+            <p className="text-sm text-muted-foreground">
+              <strong className="text-foreground">Interpretation:</strong> Higher inverse moments indicate 
+              more concentrated loading around the centroid. The effective radius r_eff = μ₋₂,ε^(-1/2) 
+              provides a characteristic length scale for load localization.
+            </p>
           </div>
         </CardContent>
       </Card>
