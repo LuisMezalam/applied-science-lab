@@ -37,6 +37,31 @@ export interface Moment3DResults {
   I3: number;
 }
 
+export interface Moment3DNegativeOrder {
+  // Regularization parameter ε
+  epsilon: number;
+  // Scalar inverse moment: μ₋₂,ε = ∫(r² + ε²)^(-1) f(x,y,z) dV
+  scalarInverseMoment: number;
+  // Directional inverse moment tensor (diagonal components)
+  inverseTensorXX: number;
+  inverseTensorYY: number;
+  inverseTensorZZ: number;
+  // Off-diagonal (for anisotropic distributions)
+  inverseTensorXY: number;
+  inverseTensorXZ: number;
+  inverseTensorYZ: number;
+  // Principal inverse moments (eigenvalues)
+  inversePrincipal1: number;
+  inversePrincipal2: number;
+  inversePrincipal3: number;
+  // Effective radii from scalar inverse moment
+  effectiveRadius: number;
+  // Effective radii from directional components
+  effectiveRadiusX: number;
+  effectiveRadiusY: number;
+  effectiveRadiusZ: number;
+}
+
 export interface Point3D {
   x: number;
   y: number;
@@ -282,5 +307,163 @@ export function calculate3DMoments(points: Point3D[], shape: Shape3D, params: Sh
     I0, centroidX, centroidY, centroidZ,
     Ixx, Iyy, Izz, Ixy, Ixz, Iyz,
     I1, I2, I3
+  };
+}
+
+/**
+ * Calculate 3D negative-order moments with ε-regularization
+ * Computes the 3x3 inverse moment tensor about the centroid
+ */
+export function calculate3DNegativeOrderMoments(
+  points: Point3D[],
+  shape: Shape3D,
+  params: Shape3DParams,
+  epsilon: number,
+  centroid: { x: number; y: number; z: number }
+): Moment3DNegativeOrder {
+  if (points.length === 0) {
+    return {
+      epsilon,
+      scalarInverseMoment: 0,
+      inverseTensorXX: 0, inverseTensorYY: 0, inverseTensorZZ: 0,
+      inverseTensorXY: 0, inverseTensorXZ: 0, inverseTensorYZ: 0,
+      inversePrincipal1: 0, inversePrincipal2: 0, inversePrincipal3: 0,
+      effectiveRadius: 0,
+      effectiveRadiusX: 0, effectiveRadiusY: 0, effectiveRadiusZ: 0
+    };
+  }
+  
+  // Estimate volume element
+  let totalVolume: number;
+  switch (shape) {
+    case 'box':
+      totalVolume = (params.width || 2) * (params.height || 1) * (params.depth || 1.5);
+      break;
+    case 'sphere':
+      totalVolume = (4/3) * Math.PI * (params.radius || 1) ** 3;
+      break;
+    case 'cylinder':
+      totalVolume = Math.PI * (params.radius || 1) ** 2 * (params.height || 2);
+      break;
+    default:
+      totalVolume = 1;
+  }
+  
+  const dV = totalVolume / points.length;
+  const eps2 = epsilon * epsilon;
+  
+  // Compute total intensity for normalization
+  let totalIntensity = 0;
+  for (const p of points) {
+    totalIntensity += p.intensity * dV;
+  }
+  
+  if (totalIntensity === 0) {
+    return {
+      epsilon,
+      scalarInverseMoment: 0,
+      inverseTensorXX: 0, inverseTensorYY: 0, inverseTensorZZ: 0,
+      inverseTensorXY: 0, inverseTensorXZ: 0, inverseTensorYZ: 0,
+      inversePrincipal1: 0, inversePrincipal2: 0, inversePrincipal3: 0,
+      effectiveRadius: 0,
+      effectiveRadiusX: 0, effectiveRadiusY: 0, effectiveRadiusZ: 0
+    };
+  }
+  
+  // Normalize intensity for probability density
+  const normFactor = 1 / totalIntensity;
+  
+  // Compute scalar and tensor inverse moments
+  let scalarInverse = 0;
+  let Mxx = 0, Myy = 0, Mzz = 0;
+  let Mxy = 0, Mxz = 0, Myz = 0;
+  
+  for (const p of points) {
+    const dx = p.x - centroid.x;
+    const dy = p.y - centroid.y;
+    const dz = p.z - centroid.z;
+    const r2 = dx * dx + dy * dy + dz * dz;
+    
+    const f = p.intensity * dV * normFactor;
+    
+    // Scalar inverse moment: μ₋₂,ε = ∫(r² + ε²)^(-1) f dV
+    scalarInverse += f / (r2 + eps2);
+    
+    // Directional inverse tensor components
+    // Using regularized forms: Mxx = ∫(dx² + ε²)^(-1) f dV, etc.
+    Mxx += f / (dx * dx + eps2);
+    Myy += f / (dy * dy + eps2);
+    Mzz += f / (dz * dz + eps2);
+    
+    // Off-diagonal: weighted by sign and regularized
+    const rxy2 = dx * dx + dy * dy + eps2;
+    const rxz2 = dx * dx + dz * dz + eps2;
+    const ryz2 = dy * dy + dz * dz + eps2;
+    
+    Mxy += f * dx * dy / (rxy2 * Math.sqrt(rxy2));
+    Mxz += f * dx * dz / (rxz2 * Math.sqrt(rxz2));
+    Myz += f * dy * dz / (ryz2 * Math.sqrt(ryz2));
+  }
+  
+  // Compute principal inverse moments (eigenvalues of symmetric tensor)
+  // Construct the tensor matrix
+  const trace = Mxx + Myy + Mzz;
+  const q = trace / 3;
+  
+  const A = [
+    [Mxx - q, Mxy, Mxz],
+    [Mxy, Myy - q, Myz],
+    [Mxz, Myz, Mzz - q]
+  ];
+  
+  const p2 = A[0][0] ** 2 + A[1][1] ** 2 + A[2][2] ** 2 + 
+             2 * (A[0][1] ** 2 + A[0][2] ** 2 + A[1][2] ** 2);
+  const p = Math.sqrt(p2 / 6);
+  
+  let inv1: number, inv2: number, inv3: number;
+  
+  if (p < 1e-10) {
+    inv1 = Mxx;
+    inv2 = Myy;
+    inv3 = Mzz;
+  } else {
+    const B = A.map(row => row.map(val => val / p));
+    const detB = B[0][0] * (B[1][1] * B[2][2] - B[1][2] * B[2][1]) -
+                 B[0][1] * (B[1][0] * B[2][2] - B[1][2] * B[2][0]) +
+                 B[0][2] * (B[1][0] * B[2][1] - B[1][1] * B[2][0]);
+    
+    const r = detB / 2;
+    const phi = Math.abs(r) >= 1 ? (r >= 0 ? 0 : Math.PI / 3) : Math.acos(r) / 3;
+    
+    inv1 = q + 2 * p * Math.cos(phi);
+    inv3 = q + 2 * p * Math.cos(phi + 2 * Math.PI / 3);
+    inv2 = 3 * q - inv1 - inv3;
+  }
+  
+  // Sort principal moments (descending)
+  [inv1, inv2, inv3] = [inv1, inv2, inv3].sort((a, b) => b - a);
+  
+  // Compute effective radii
+  const effectiveRadius = scalarInverse > 0 ? Math.sqrt(1 / scalarInverse) : 0;
+  const effectiveRadiusX = Mxx > 0 ? Math.sqrt(1 / Mxx) : 0;
+  const effectiveRadiusY = Myy > 0 ? Math.sqrt(1 / Myy) : 0;
+  const effectiveRadiusZ = Mzz > 0 ? Math.sqrt(1 / Mzz) : 0;
+  
+  return {
+    epsilon,
+    scalarInverseMoment: scalarInverse,
+    inverseTensorXX: Mxx,
+    inverseTensorYY: Myy,
+    inverseTensorZZ: Mzz,
+    inverseTensorXY: Mxy,
+    inverseTensorXZ: Mxz,
+    inverseTensorYZ: Myz,
+    inversePrincipal1: inv1,
+    inversePrincipal2: inv2,
+    inversePrincipal3: inv3,
+    effectiveRadius,
+    effectiveRadiusX,
+    effectiveRadiusY,
+    effectiveRadiusZ
   };
 }

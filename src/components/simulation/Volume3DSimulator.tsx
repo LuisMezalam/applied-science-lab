@@ -8,14 +8,22 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Box, Cylinder } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Box, Cylinder, AlertTriangle, Info } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import * as THREE from 'three';
 import {
   Shape3D,
   Shape3DParams,
   generate3DField,
   calculate3DMoments,
+  calculate3DNegativeOrderMoments,
   Point3D,
+  Moment3DNegativeOrder,
 } from '@/lib/physics/moment3D';
 import { formatValue } from '@/lib/physics/momentCalculus';
 
@@ -130,11 +138,97 @@ function AxesHelper() {
   );
 }
 
-function Scene({ points, moments, maxIntensity }: { 
+function EffectiveRadiusEllipsoid({ 
+  centroid, 
+  radii,
+  visible 
+}: { 
+  centroid: { x: number; y: number; z: number };
+  radii: { x: number; y: number; z: number };
+  visible: boolean;
+}) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  
+  useFrame((state) => {
+    if (meshRef.current) {
+      // Subtle pulsing effect
+      const scale = 1 + 0.02 * Math.sin(state.clock.elapsedTime * 2);
+      meshRef.current.scale.set(
+        radii.x * scale,
+        radii.z * scale, // Swap y/z for three.js
+        radii.y * scale
+      );
+    }
+  });
+  
+  if (!visible || radii.x === 0 || radii.y === 0 || radii.z === 0) return null;
+  
+  return (
+    <mesh 
+      ref={meshRef} 
+      position={[centroid.x, centroid.z, centroid.y]}
+    >
+      <sphereGeometry args={[1, 32, 32]} />
+      <meshBasicMaterial 
+        color="#00e5ff" 
+        transparent 
+        opacity={0.15} 
+        wireframe={false}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
+  );
+}
+
+function EffectiveRadiusWireframe({ 
+  centroid, 
+  radii,
+  visible 
+}: { 
+  centroid: { x: number; y: number; z: number };
+  radii: { x: number; y: number; z: number };
+  visible: boolean;
+}) {
+  if (!visible || radii.x === 0 || radii.y === 0 || radii.z === 0) return null;
+  
+  return (
+    <mesh position={[centroid.x, centroid.z, centroid.y]} scale={[radii.x, radii.z, radii.y]}>
+      <sphereGeometry args={[1, 16, 12]} />
+      <meshBasicMaterial 
+        color="#00e5ff" 
+        wireframe 
+        transparent 
+        opacity={0.6}
+      />
+    </mesh>
+  );
+}
+
+function Scene({ 
+  points, 
+  moments, 
+  maxIntensity,
+  negativeOrderMoments,
+  showEllipsoid
+}: { 
   points: Point3D[]; 
   moments: ReturnType<typeof calculate3DMoments>;
   maxIntensity: number;
+  negativeOrderMoments: Moment3DNegativeOrder | null;
+  showEllipsoid: boolean;
 }) {
+  const effectiveRadii = negativeOrderMoments ? {
+    x: negativeOrderMoments.effectiveRadiusX,
+    y: negativeOrderMoments.effectiveRadiusY,
+    z: negativeOrderMoments.effectiveRadiusZ
+  } : { x: 0, y: 0, z: 0 };
+  
+  const centroid = {
+    x: moments.centroidX,
+    y: moments.centroidY,
+    z: moments.centroidZ
+  };
+  
   return (
     <>
       <PerspectiveCamera makeDefault position={[4, 3, 4]} />
@@ -147,6 +241,10 @@ function Scene({ points, moments, maxIntensity }: {
       <AxesHelper />
       <VolumetricPoints points={points} maxIntensity={maxIntensity} />
       <CentroidMarker x={moments.centroidX} y={moments.centroidY} z={moments.centroidZ} />
+      
+      {/* Effective radius ellipsoid visualization */}
+      <EffectiveRadiusEllipsoid centroid={centroid} radii={effectiveRadii} visible={showEllipsoid} />
+      <EffectiveRadiusWireframe centroid={centroid} radii={effectiveRadii} visible={showEllipsoid} />
       
       {/* Ground grid */}
       <gridHelper args={[6, 12, '#444444', '#333333']} position={[0, -1.5, 0]} />
@@ -164,13 +262,42 @@ export function Volume3DSimulator() {
     magnitude: 10,
     loadingType: 'uniform',
   });
+  
+  const [epsilonPercent, setEpsilonPercent] = useState(5); // % of characteristic length
+  const [showEllipsoid, setShowEllipsoid] = useState(true);
+  const [showNegativeMoments, setShowNegativeMoments] = useState(true);
 
-  const { points, moments, maxIntensity } = useMemo(() => {
+  // Get characteristic length for ε scaling
+  const characteristicLength = useMemo(() => {
+    switch (params.shape) {
+      case 'box':
+        return Math.max(params.width || 2, params.height || 1.5, params.depth || 1);
+      case 'sphere':
+        return (params.radius || 1) * 2;
+      case 'cylinder':
+        return Math.max((params.radius || 1) * 2, params.height || 2);
+      default:
+        return 2;
+    }
+  }, [params.shape, params.width, params.height, params.depth, params.radius]);
+  
+  const epsilon = (epsilonPercent / 100) * characteristicLength;
+
+  const { points, moments, maxIntensity, negativeOrderMoments } = useMemo(() => {
     const pts = generate3DField(params, 12);
     const mom = calculate3DMoments(pts, params.shape, params);
     const maxI = Math.max(...pts.map(p => p.intensity), 0.001);
-    return { points: pts, moments: mom, maxIntensity: maxI };
-  }, [params]);
+    
+    const negMom = showNegativeMoments ? calculate3DNegativeOrderMoments(
+      pts,
+      params.shape,
+      params,
+      epsilon,
+      { x: mom.centroidX, y: mom.centroidY, z: mom.centroidZ }
+    ) : null;
+    
+    return { points: pts, moments: mom, maxIntensity: maxI, negativeOrderMoments: negMom };
+  }, [params, epsilon, showNegativeMoments]);
 
   return (
     <div className="space-y-6">
@@ -316,6 +443,15 @@ export function Volume3DSimulator() {
                 step={1}
               />
             </div>
+
+            {/* Toggle for Negative-Order Moments */}
+            <div className="flex items-center justify-between pt-2 border-t border-border/30">
+              <Label className="text-sm">Negative-Order Moments (ε-Regularized)</Label>
+              <Switch 
+                checked={showNegativeMoments} 
+                onCheckedChange={setShowNegativeMoments}
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -327,19 +463,183 @@ export function Volume3DSimulator() {
           <CardContent>
             <div className="h-[350px] rounded-lg overflow-hidden bg-background/50 border border-border/30">
               <Canvas>
-                <Scene points={points} moments={moments} maxIntensity={maxIntensity} />
+                <Scene 
+                  points={points} 
+                  moments={moments} 
+                  maxIntensity={maxIntensity}
+                  negativeOrderMoments={negativeOrderMoments}
+                  showEllipsoid={showEllipsoid}
+                />
               </Canvas>
             </div>
             <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-green-500" />
-                Centroid
-              </span>
+              <div className="flex items-center gap-4">
+                <span className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-green-500" />
+                  Centroid
+                </span>
+                {showEllipsoid && showNegativeMoments && (
+                  <span className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-cyan-400/60" />
+                    r_eff ellipsoid
+                  </span>
+                )}
+              </div>
               <span>Drag to rotate • Scroll to zoom</span>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Negative-Order Moments Section */}
+      {showNegativeMoments && negativeOrderMoments && (
+        <Card className="border-warning/30 bg-warning/5 backdrop-blur">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-warning" />
+              3D Inverse Moment Tensor (ε-Regularized)
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="text-xs">
+                    The 3x3 inverse moment tensor measures volumetric load concentration.
+                    Higher inverse moments and smaller effective radii indicate more localized distributions.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Epsilon Control */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  ε (regularization scale): {epsilonPercent}% of L
+                  {epsilonPercent < 2 && (
+                    <span className="flex items-center gap-1 text-warning text-xs">
+                      <AlertTriangle className="h-3 w-3" />
+                      Small ε amplifies singularity effects
+                    </span>
+                  )}
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs text-muted-foreground">Show Ellipsoid</Label>
+                  <Switch checked={showEllipsoid} onCheckedChange={setShowEllipsoid} />
+                </div>
+              </div>
+              <Slider
+                value={[epsilonPercent]}
+                onValueChange={([v]) => setEpsilonPercent(v)}
+                min={0.5}
+                max={20}
+                step={0.5}
+                className="w-full"
+              />
+              <div className="text-xs text-muted-foreground">
+                ε = {formatValue(epsilon)} m (resolution scale)
+              </div>
+            </div>
+
+            {/* Scalar Inverse Moment */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <MomentCard3D
+                label="μ₋₂,ε (scalar)"
+                value={negativeOrderMoments.scalarInverseMoment}
+                unit="m⁻²"
+                description="∭(r² + ε²)⁻¹ f dV"
+              />
+              <MomentCard3D
+                label="r_eff (scalar)"
+                value={negativeOrderMoments.effectiveRadius}
+                unit="m"
+                description="(μ₋₂,ε)⁻¹/²"
+              />
+              <MomentCard3D
+                label="r_eff,x"
+                value={negativeOrderMoments.effectiveRadiusX}
+                unit="m"
+                description="X-direction"
+              />
+              <MomentCard3D
+                label="r_eff,y"
+                value={negativeOrderMoments.effectiveRadiusY}
+                unit="m"
+                description="Y-direction"
+              />
+            </div>
+
+            {/* Inverse Tensor Matrix */}
+            <div className="p-4 rounded-lg bg-background/50 border border-warning/20">
+              <h4 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+                Inverse Moment Tensor M₋₂,ε (about centroid)
+              </h4>
+              <div className="grid grid-cols-3 gap-2 text-center font-mono text-sm">
+                <div className="p-2 rounded bg-warning/10 text-warning">
+                  Mxx = {formatValue(negativeOrderMoments.inverseTensorXX)}
+                </div>
+                <div className="p-2 rounded bg-muted/50 text-muted-foreground">
+                  Mxy = {formatValue(negativeOrderMoments.inverseTensorXY)}
+                </div>
+                <div className="p-2 rounded bg-muted/50 text-muted-foreground">
+                  Mxz = {formatValue(negativeOrderMoments.inverseTensorXZ)}
+                </div>
+                <div className="p-2 rounded bg-muted/50 text-muted-foreground">
+                  Mxy = {formatValue(negativeOrderMoments.inverseTensorXY)}
+                </div>
+                <div className="p-2 rounded bg-warning/10 text-warning">
+                  Myy = {formatValue(negativeOrderMoments.inverseTensorYY)}
+                </div>
+                <div className="p-2 rounded bg-muted/50 text-muted-foreground">
+                  Myz = {formatValue(negativeOrderMoments.inverseTensorYZ)}
+                </div>
+                <div className="p-2 rounded bg-muted/50 text-muted-foreground">
+                  Mxz = {formatValue(negativeOrderMoments.inverseTensorXZ)}
+                </div>
+                <div className="p-2 rounded bg-muted/50 text-muted-foreground">
+                  Myz = {formatValue(negativeOrderMoments.inverseTensorYZ)}
+                </div>
+                <div className="p-2 rounded bg-warning/10 text-warning">
+                  Mzz = {formatValue(negativeOrderMoments.inverseTensorZZ)}
+                </div>
+              </div>
+            </div>
+
+            {/* Principal Inverse Moments */}
+            <div className="grid grid-cols-3 gap-3">
+              <MomentCard3D
+                label="M₋₂,₁ (principal)"
+                value={negativeOrderMoments.inversePrincipal1}
+                unit="m⁻²"
+                description="Maximum"
+              />
+              <MomentCard3D
+                label="M₋₂,₂ (principal)"
+                value={negativeOrderMoments.inversePrincipal2}
+                unit="m⁻²"
+                description="Intermediate"
+              />
+              <MomentCard3D
+                label="M₋₂,₃ (principal)"
+                value={negativeOrderMoments.inversePrincipal3}
+                unit="m⁻²"
+                description="Minimum"
+              />
+            </div>
+
+            {/* Z-direction effective radius */}
+            <div className="grid grid-cols-1 gap-3">
+              <MomentCard3D
+                label="r_eff,z"
+                value={negativeOrderMoments.effectiveRadiusZ}
+                unit="m"
+                description="Z-direction effective radius"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Moment Results */}
       <Card className="border-border/50 bg-card/60 backdrop-blur">
