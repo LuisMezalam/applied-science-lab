@@ -25,6 +25,7 @@ import {
   Point3D,
   Moment3DNegativeOrder,
 } from '@/lib/physics/moment3D';
+import { InverseMomentComparison } from './InverseMomentComparison';
 import { formatValue } from '@/lib/physics/momentCalculus';
 
 const shapeOptions: { value: Shape3D; label: string; icon: React.ReactNode }[] = [
@@ -639,6 +640,15 @@ export function Volume3DSimulator() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Shape Comparison Table */}
+      {showNegativeMoments && (
+        <InverseMomentComparison
+          loadingType={params.loadingType}
+          magnitude={params.magnitude}
+          epsilonPercent={epsilonPercent}
+        />
       )}
 
       {/* Moment Results */}
