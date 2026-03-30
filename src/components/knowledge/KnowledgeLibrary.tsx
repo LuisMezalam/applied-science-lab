@@ -692,6 +692,35 @@ const initialConcepts: KnowledgeConcept[] = [
     ],
     sourceDocument: 'ATotalUnificationofEngineeringLoadsviaMomentCalculus.pdf',
   },
+  // ============ ARCHITECTURE & MODULARITY (Sec. 9) ============
+  {
+    id: 'arch-modular-organization',
+    title: 'Document Architecture: Modular Organization',
+    category: 'theory',
+    domain: 'unified',
+    content: 'The framework is organized into four modules: (A) Core calculus (definitions, ladder, signed-field rule, negative-order regularization), (B) Domain adapters (each row maps Ω, I with units and sign rules), (C) Validation harnesses (units, conservation, edge-case checks), (D) Exception lifts (state variables → admissible intensities).',
+    equations: [
+      'Module A: Core calculus (Secs. 1–4)',
+      'Module B: Domain adapters (Sec. 5, one per Master ID)',
+      'Module C: Validation harnesses (Sec. 8)',
+      'Module D: State-variable lifts (Sec. 6)',
+    ],
+    sourceDocument: 'ATotalUnificationofEngineeringLoadsviaMomentCalculus.pdf',
+  },
+  {
+    id: 'arch-coupling-risks',
+    title: 'Coupling Risks to Avoid',
+    category: 'theory',
+    domain: 'unified',
+    content: 'Critical anti-patterns: (1) Mixing sign conventions into the universal calculus—keep sign choices in domain adapters. (2) Treating complex objects (e.g., transfer functions) as intensities without re-domaining. (3) Reporting negative-order metrics without declaring ε (silently invalid). (4) Collapsing spatial distributions into lumped scalars then claiming spatial centroids.',
+    equations: [
+      'Risk 1: Sign conventions leak into core calculus',
+      'Risk 2: Complex values treated as intensities',
+      'Risk 3: \\(\\mu_{-k}\\) reported without \\(\\varepsilon\\)',
+      'Risk 4: Lumped scalars claiming spatial centroids',
+    ],
+    sourceDocument: 'ATotalUnificationofEngineeringLoadsviaMomentCalculus.pdf',
+  },
 ];
 
 const categoryIcons = {
