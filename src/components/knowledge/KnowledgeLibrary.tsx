@@ -298,6 +298,20 @@ const initialConcepts: KnowledgeConcept[] = [
     sourceDocument: 'ATotalUnificationofEngineeringLoadsviaMomentCalculus.pdf',
   },
   {
+    id: 'master-m009',
+    title: 'M-009: Rotational Damper Dissipation',
+    category: 'application',
+    domain: 'dynamics',
+    content: 'Rotational damper dissipation I(t) = c(Δω(t))² or |τ_f·ω|. Nonnegative dissipation intensity; integrates to total dissipated rotational energy. Temporal centroid/spread localize bursts of rotational dissipation.',
+    equations: [
+      '\\(I(t) = c\\,(\\Delta\\omega(t))^2\\) or \\(|\\tau_f \\omega|\\)',
+      '\\(\\Omega = t \\in [t_0,\\, t_1]\\)',
+      '\\(E_{\\text{diss}} = \\int c\\,(\\Delta\\omega)^2\\, dt\\)',
+      '\\(\\bar{t}\\) = temporal centroid of rotational dissipation',
+    ],
+    sourceDocument: 'ATotalUnificationofEngineeringLoadsviaMomentCalculus.pdf',
+  },
+  {
     id: 'master-m010',
     title: 'M-010: Circuit Branch Current',
     category: 'application',
