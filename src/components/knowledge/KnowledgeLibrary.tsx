@@ -604,6 +604,34 @@ const initialConcepts: KnowledgeConcept[] = [
     ],
     sourceDocument: 'ATotalUnificationofEngineeringLoadsviaMomentCalculus.pdf',
   },
+  {
+    id: 'equiv-pressure-shear',
+    title: 'Equivalence: Pressure/Shear ↔ Traction-Intensity Densities',
+    category: 'example',
+    domain: 'unified',
+    content: 'Pressure magnitude p(x) and shear magnitude |τw(x)| are force-per-area intensities. Integrating gives resultant forces; centroids give points of action; spreads give footprints.',
+    equations: [
+      '\\(I_p = p(\\mathbf{x})\\) [N/m²] (pressure intensity)',
+      '\\(I_\\tau = |\\tau_w(\\mathbf{x})|\\) [N/m²] (shear intensity)',
+      '\\(F = \\iint I\\, dA\\) (resultant force)',
+      'Centroid = point of action; spread = footprint',
+    ],
+    sourceDocument: 'ATotalUnificationofEngineeringLoadsviaMomentCalculus.pdf',
+  },
+  {
+    id: 'equiv-propulsion-flux',
+    title: 'Equivalence: Propulsion ↔ Flux Densities',
+    category: 'example',
+    domain: 'unified',
+    content: 'Thrust arises from momentum-flux and pressure-thrust terms. When expressed over exit planes or control surfaces, these are intensities with centroids/spreads diagnosing alignment and off-axis tendencies.',
+    equations: [
+      '\\(I = \\rho u^2\\) (momentum flux density)',
+      '\\(I = |p - p_a|\\) (pressure thrust density)',
+      'Centroid diagnoses thrust alignment',
+      'Spread diagnoses off-axis torque propensity',
+    ],
+    sourceDocument: 'ATotalUnificationofEngineeringLoadsviaMomentCalculus.pdf',
+  },
   // ============ VERIFICATION HARNESSES ============
   {
     id: 'verify-units',
