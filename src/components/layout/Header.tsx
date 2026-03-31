@@ -5,7 +5,8 @@ import {
   BookOpen, 
   FlaskConical,
   Square,
-  Box
+  Box,
+  TableProperties
 } from 'lucide-react';
 
 export type ActiveTab = 'simulator' | 'surface2d' | 'volume3d' | 'library';
