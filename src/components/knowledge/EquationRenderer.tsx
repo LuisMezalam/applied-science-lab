@@ -10,8 +10,9 @@ interface EquationRendererProps {
  * LaTeX segments are delimited by \( ... \).
  */
 export function EquationRenderer({ equation }: EquationRendererProps) {
-  // Split on \(...\) delimiters, capturing the content
-  const parts = equation.split(/\\\((.+?)\\\)/g);
+  // Normalize $...$ delimiters to \(...\) then split
+  const normalized = equation.replace(/\$(.+?)\$/g, '\\($1\\)');
+  const parts = normalized.split(/\\\((.+?)\\\)/g);
 
   if (parts.length === 1) {
     // No LaTeX found, render as plain text
