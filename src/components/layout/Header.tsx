@@ -5,10 +5,11 @@ import {
   BookOpen, 
   FlaskConical,
   Square,
-  Box
+  Box,
+  TableProperties
 } from 'lucide-react';
 
-export type ActiveTab = 'simulator' | 'surface2d' | 'volume3d' | 'library';
+export type ActiveTab = 'simulator' | 'surface2d' | 'volume3d' | 'dictionary' | 'library';
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -70,6 +71,15 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
             >
               <Box className="h-4 w-4" />
               <span className="hidden sm:inline">3D</span>
+            </Button>
+            <Button
+              variant={activeTab === 'dictionary' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => onTabChange('dictionary')}
+              className="gap-2"
+            >
+              <TableProperties className="h-4 w-4" />
+              <span className="hidden sm:inline">Dictionary</span>
             </Button>
             <Button
               variant={activeTab === 'library' ? 'secondary' : 'ghost'}

@@ -5,6 +5,7 @@ import { MomentSimulator } from '@/components/simulation/MomentSimulator';
 import { Surface2DSimulator } from '@/components/simulation/Surface2DSimulator';
 import { Volume3DSimulator } from '@/components/simulation/Volume3DSimulator';
 import { KnowledgeLibrary } from '@/components/knowledge/KnowledgeLibrary';
+import { MasterDictionary } from '@/components/knowledge/MasterDictionary';
 import { Atom, ArrowRight, Layers, TrendingUp, Binary } from 'lucide-react';
 import heroImage from '@/assets/hero-physics.jpg';
 
@@ -159,6 +160,16 @@ const Index = () => {
               className="min-h-[600px]"
             >
               <Volume3DSimulator />
+            </motion.div>
+          )}
+          {activeTab === 'dictionary' && (
+            <motion.div
+              key="dictionary"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <MasterDictionary />
             </motion.div>
           )}
           {activeTab === 'library' && (
