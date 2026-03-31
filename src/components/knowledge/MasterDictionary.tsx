@@ -272,16 +272,16 @@ export function MasterDictionary() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm">
-                    <EquationRenderer content={e.quantity} />
+                    <EquationRenderer equation={e.quantity} />
                   </TableCell>
                   <TableCell className="text-sm">
-                    <EquationRenderer content={e.recommendedI} />
+                    <EquationRenderer equation={e.recommendedI} />
                   </TableCell>
                   <TableCell className="text-sm font-mono">
-                    <EquationRenderer content={e.omega} />
+                    <EquationRenderer equation={e.omega} />
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground leading-relaxed">
-                    <EquationRenderer content={e.notes} />
+                    <EquationRenderer equation={e.notes} />
                   </TableCell>
                 </TableRow>
               ))}
