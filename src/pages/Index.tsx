@@ -162,6 +162,16 @@ const Index = () => {
               <Volume3DSimulator />
             </motion.div>
           )}
+          {activeTab === 'dictionary' && (
+            <motion.div
+              key="dictionary"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <MasterDictionary />
+            </motion.div>
+          )}
           {activeTab === 'library' && (
             <motion.div
               key="library"
