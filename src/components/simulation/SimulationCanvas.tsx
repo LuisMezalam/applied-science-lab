@@ -1,5 +1,17 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ReferenceLine,
+  ReferenceArea,
+  ResponsiveContainer,
+  Brush,
+} from 'recharts';
 import { IntensityField, MomentResults, DomainType, NegativeOrderMoments } from '@/types/physics';
 
 interface SimulationCanvasProps {
@@ -13,12 +25,129 @@ interface SimulationCanvasProps {
   animated?: boolean;
 }
 
-const domainColors = {
-  structures: { fill: 'rgba(59, 130, 246, 0.3)', stroke: '#3B82F6', glow: '#60A5FA' },
-  heat: { fill: 'rgba(249, 115, 22, 0.3)', stroke: '#F97316', glow: '#FB923C' },
-  fluids: { fill: 'rgba(20, 184, 166, 0.3)', stroke: '#14B8A6', glow: '#2DD4BF' },
+const DOMAIN_THEMES: Record<string, {
+  stroke: string;
+  fill: string;
+  glow: string;
+  label: string;
+  intensityName: string;
+  positionUnit: string;
+  intensityUnit: string;
+}> = {
+  structures: {
+    stroke: 'hsl(210, 100%, 60%)',
+    fill: 'hsl(210, 100%, 60%)',
+    glow: 'hsl(210, 100%, 70%)',
+    label: 'Structures',
+    intensityName: 'Force Density',
+    positionUnit: 'm',
+    intensityUnit: 'N/m',
+  },
+  heat: {
+    stroke: 'hsl(20, 95%, 55%)',
+    fill: 'hsl(20, 95%, 55%)',
+    glow: 'hsl(20, 100%, 65%)',
+    label: 'Heat Transfer',
+    intensityName: 'Heat Flux',
+    positionUnit: 'm',
+    intensityUnit: 'W/m²',
+  },
+  fluids: {
+    stroke: 'hsl(180, 70%, 50%)',
+    fill: 'hsl(180, 70%, 50%)',
+    glow: 'hsl(180, 80%, 60%)',
+    label: 'Fluids',
+    intensityName: 'Pressure',
+    positionUnit: 'm',
+    intensityUnit: 'Pa',
+  },
 };
 
+const CENTROID_COLOR = '#FBBF24';
+const SIGMA_COLOR = 'hsl(280, 80%, 65%)';
+const WEFF_COLOR = '#22D3EE';
+
+/* ---------- custom tooltip ---------- */
+function CustomTooltip({
+  active,
+  payload,
+  domain,
+  moments,
+  negMoments,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: { x: number; I: number } }>;
+  label?: number;
+  domain: DomainType;
+  moments: MomentResults;
+  negMoments?: NegativeOrderMoments;
+}) {
+  if (!active || !payload?.length) return null;
+  const { x, I } = payload[0].payload;
+  const theme = DOMAIN_THEMES[domain];
+  const sigma = moments.standardDeviation;
+  const insideSigma =
+    moments.zerothMoment > 0 &&
+    x >= moments.centroid - sigma &&
+    x <= moments.centroid + sigma;
+  const wEff = negMoments?.effectiveWidth2;
+  const insideWeff =
+    wEff != null &&
+    wEff < Infinity &&
+    moments.zerothMoment > 0 &&
+    x >= moments.centroid - wEff / 2 &&
+    x <= moments.centroid + wEff / 2;
+
+  return (
+    <div className="rounded-lg border border-border bg-card/95 backdrop-blur-sm px-3 py-2.5 shadow-lg text-xs space-y-1.5 min-w-[170px]">
+      <div className="flex items-center gap-2 text-foreground font-medium">
+        <span
+          className="w-2 h-2 rounded-full"
+          style={{ background: theme.stroke }}
+        />
+        {theme.label}
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
+        <span>Position</span>
+        <span className="text-foreground font-mono text-right">
+          {x.toFixed(3)} {theme.positionUnit}
+        </span>
+        <span>{theme.intensityName}</span>
+        <span className="text-foreground font-mono text-right">
+          {I.toFixed(4)} {theme.intensityUnit}
+        </span>
+      </div>
+      {(insideSigma || insideWeff) && (
+        <div className="border-t border-border pt-1.5 space-y-0.5">
+          {insideSigma && (
+            <div className="flex items-center gap-1.5">
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ background: SIGMA_COLOR }}
+              />
+              <span className="text-muted-foreground">
+                Within ±σ dispersion region
+              </span>
+            </div>
+          )}
+          {insideWeff && (
+            <div className="flex items-center gap-1.5">
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ background: WEFF_COLOR }}
+              />
+              <span className="text-muted-foreground">
+                Within w<sub>eff</sub> localization zone
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- main component ---------- */
 export function SimulationCanvas({
   field,
   moments,
@@ -27,324 +156,300 @@ export function SimulationCanvas({
   showDispersion = true,
   showEffectiveWidth = false,
   negativeOrderMoments,
-  animated = true,
 }: SimulationCanvasProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>();
-  const timeRef = useRef(0);
+  const theme = DOMAIN_THEMES[domain] ?? DOMAIN_THEMES.structures;
 
-  const colors = domainColors[domain];
+  /* build chart data */
+  const data = useMemo(() => {
+    return field.positions.map((pos, i) => ({
+      x: parseFloat(pos.toFixed(4)),
+      I: field.values[i],
+    }));
+  }, [field]);
 
-  const draw = useCallback((ctx: CanvasRenderingContext2D, time: number, negMoments?: NegativeOrderMoments) => {
-    const canvas = ctx.canvas;
-    const width = canvas.width;
-    const height = canvas.height;
-    const padding = { top: 40, right: 40, bottom: 60, left: 60 };
-    const plotWidth = width - padding.left - padding.right;
-    const plotHeight = height - padding.top - padding.bottom;
+  const maxI = useMemo(() => Math.max(...field.values, 0.01), [field]);
 
-    // Clear canvas
-    ctx.fillStyle = 'hsl(222, 47%, 6%)';
-    ctx.fillRect(0, 0, width, height);
+  /* sigma bounds */
+  const sigma = moments.standardDeviation;
+  const sigmaLeft = moments.centroid - sigma;
+  const sigmaRight = moments.centroid + sigma;
 
-    // Draw grid
-    ctx.strokeStyle = 'hsl(220, 20%, 15%)';
-    ctx.lineWidth = 1;
-    
-    // Vertical grid lines
-    for (let i = 0; i <= 10; i++) {
-      const x = padding.left + (i / 10) * plotWidth;
-      ctx.beginPath();
-      ctx.moveTo(x, padding.top);
-      ctx.lineTo(x, height - padding.bottom);
-      ctx.stroke();
-    }
-    
-    // Horizontal grid lines
-    for (let i = 0; i <= 8; i++) {
-      const y = padding.top + (i / 8) * plotHeight;
-      ctx.beginPath();
-      ctx.moveTo(padding.left, y);
-      ctx.lineTo(width - padding.right, y);
-      ctx.stroke();
-    }
+  /* weff bounds */
+  const wEff = negativeOrderMoments?.effectiveWidth2;
+  const wEffLeft =
+    wEff != null && wEff < Infinity ? moments.centroid - wEff / 2 : undefined;
+  const wEffRight =
+    wEff != null && wEff < Infinity ? moments.centroid + wEff / 2 : undefined;
 
-    // Calculate scales
-    const maxValue = Math.max(...field.values, 1);
-    const domainStart = field.domain[0];
-    const domainEnd = field.domain[1];
-    const domainRange = domainEnd - domainStart;
-
-    const xScale = (x: number) => padding.left + ((x - domainStart) / domainRange) * plotWidth;
-    const yScale = (y: number) => height - padding.bottom - (y / maxValue) * plotHeight;
-
-    // Draw filled area under curve with gradient
-    const gradient = ctx.createLinearGradient(0, padding.top, 0, height - padding.bottom);
-    gradient.addColorStop(0, colors.fill);
-    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-    ctx.beginPath();
-    ctx.moveTo(xScale(field.positions[0]), yScale(0));
-    
-    field.positions.forEach((pos, i) => {
-      ctx.lineTo(xScale(pos), yScale(field.values[i]));
-    });
-    
-    ctx.lineTo(xScale(field.positions[field.positions.length - 1]), yScale(0));
-    ctx.closePath();
-    ctx.fillStyle = gradient;
-    ctx.fill();
-
-    // Draw intensity curve with glow effect
-    if (animated) {
-      ctx.shadowColor = colors.glow;
-      ctx.shadowBlur = 10 + 5 * Math.sin(time * 0.002);
-    }
-    
-    ctx.strokeStyle = colors.stroke;
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(xScale(field.positions[0]), yScale(field.values[0]));
-    
-    field.positions.forEach((pos, i) => {
-      ctx.lineTo(xScale(pos), yScale(field.values[i]));
-    });
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    // Draw centroid line
-    if (showCentroid && moments.zerothMoment > 0) {
-      const centroidX = xScale(moments.centroid);
-      
-      ctx.strokeStyle = '#FBBF24';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([8, 4]);
-      ctx.beginPath();
-      ctx.moveTo(centroidX, padding.top);
-      ctx.lineTo(centroidX, height - padding.bottom);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Centroid marker
-      ctx.fillStyle = '#FBBF24';
-      ctx.beginPath();
-      ctx.moveTo(centroidX, height - padding.bottom + 5);
-      ctx.lineTo(centroidX - 8, height - padding.bottom + 18);
-      ctx.lineTo(centroidX + 8, height - padding.bottom + 18);
-      ctx.closePath();
-      ctx.fill();
-
-      // Centroid label
-      ctx.font = '12px JetBrains Mono';
-      ctx.fillStyle = '#FBBF24';
-      ctx.textAlign = 'center';
-      ctx.fillText('x̄ = ' + moments.centroid.toFixed(2), centroidX, height - padding.bottom + 32);
-    }
-
-    // Draw dispersion region (±σ from centroid)
-    if (showDispersion && moments.standardDeviation > 0 && moments.zerothMoment > 0) {
-      const sigma = moments.standardDeviation;
-      const leftBound = xScale(Math.max(domainStart, moments.centroid - sigma));
-      const rightBound = xScale(Math.min(domainEnd, moments.centroid + sigma));
-      
-      ctx.fillStyle = 'rgba(168, 85, 247, 0.15)';
-      ctx.fillRect(leftBound, padding.top, rightBound - leftBound, plotHeight);
-      
-      // σ markers
-      ctx.strokeStyle = '#A855F7';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([4, 4]);
-      
-      [moments.centroid - sigma, moments.centroid + sigma].forEach(x => {
-        if (x >= domainStart && x <= domainEnd) {
-          const px = xScale(x);
-          ctx.beginPath();
-          ctx.moveTo(px, padding.top);
-          ctx.lineTo(px, height - padding.bottom);
-          ctx.stroke();
-        }
-      });
-      ctx.setLineDash([]);
-    }
-
-    // Draw effective width region (from negative-order moments)
-    if (showEffectiveWidth && negMoments && negMoments.effectiveWidth2 < Infinity && moments.zerothMoment > 0) {
-      const wEff = negMoments.effectiveWidth2;
-      const leftBound = xScale(Math.max(domainStart, moments.centroid - wEff / 2));
-      const rightBound = xScale(Math.min(domainEnd, moments.centroid + wEff / 2));
-      
-      // Fill region with cyan/teal color
-      ctx.fillStyle = 'rgba(34, 211, 238, 0.12)';
-      ctx.fillRect(leftBound, padding.top, rightBound - leftBound, plotHeight);
-      
-      // Draw w_eff boundary lines
-      ctx.strokeStyle = '#22D3EE';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([6, 3]);
-      
-      const wEffLeft = moments.centroid - wEff / 2;
-      const wEffRight = moments.centroid + wEff / 2;
-      
-      [wEffLeft, wEffRight].forEach(x => {
-        if (x >= domainStart && x <= domainEnd) {
-          const px = xScale(x);
-          ctx.beginPath();
-          ctx.moveTo(px, padding.top);
-          ctx.lineTo(px, height - padding.bottom);
-          ctx.stroke();
-        }
-      });
-      ctx.setLineDash([]);
-
-      // Draw w_eff label with bracket
-      const labelY = padding.top + 20;
-      const leftPx = xScale(Math.max(domainStart, wEffLeft));
-      const rightPx = xScale(Math.min(domainEnd, wEffRight));
-      const midX = (leftPx + rightPx) / 2;
-      
-      // Bracket lines
-      ctx.strokeStyle = '#22D3EE';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(leftPx, labelY);
-      ctx.lineTo(leftPx, labelY - 8);
-      ctx.lineTo(rightPx, labelY - 8);
-      ctx.lineTo(rightPx, labelY);
-      ctx.stroke();
-      
-      // w_eff label
-      ctx.font = '11px JetBrains Mono';
-      ctx.fillStyle = '#22D3EE';
-      ctx.textAlign = 'center';
-      ctx.fillText(`w_eff = ${wEff.toFixed(3)}`, midX, labelY - 12);
-    }
-
-    // Draw axes
-    ctx.strokeStyle = 'hsl(210, 40%, 70%)';
-    ctx.lineWidth = 1.5;
-    
-    // X-axis
-    ctx.beginPath();
-    ctx.moveTo(padding.left, height - padding.bottom);
-    ctx.lineTo(width - padding.right, height - padding.bottom);
-    ctx.stroke();
-    
-    // Y-axis
-    ctx.beginPath();
-    ctx.moveTo(padding.left, padding.top);
-    ctx.lineTo(padding.left, height - padding.bottom);
-    ctx.stroke();
-
-    // Axis labels
-    ctx.font = '12px Inter';
-    ctx.fillStyle = 'hsl(210, 40%, 70%)';
-    ctx.textAlign = 'center';
-    
-    // X-axis labels
-    for (let i = 0; i <= 5; i++) {
-      const value = domainStart + (i / 5) * domainRange;
-      const x = xScale(value);
-      ctx.fillText(value.toFixed(1), x, height - padding.bottom + 20);
-    }
-    
-    // Y-axis labels
-    ctx.textAlign = 'right';
-    for (let i = 0; i <= 4; i++) {
-      const value = (i / 4) * maxValue;
-      const y = yScale(value);
-      ctx.fillText(value.toFixed(1), padding.left - 10, y + 4);
-    }
-
-    // Axis titles
-    ctx.font = '14px Inter';
-    ctx.fillStyle = 'hsl(210, 40%, 80%)';
-    ctx.textAlign = 'center';
-    ctx.fillText('Position x', width / 2, height - 10);
-    
-    ctx.save();
-    ctx.translate(15, height / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.fillText('Intensity I(x)', 0, 0);
-    ctx.restore();
-
-    // Domain indicator
-    ctx.font = 'bold 11px Inter';
-    ctx.fillStyle = colors.stroke;
-    ctx.textAlign = 'left';
-    const domainLabel = domain.charAt(0).toUpperCase() + domain.slice(1);
-    ctx.fillText(domainLabel, width - padding.right - 70, padding.top - 15);
-
-  }, [field, moments, domain, colors, showCentroid, showDispersion, showEffectiveWidth, animated]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Set canvas size with device pixel ratio for sharp rendering
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
-
-    if (animated) {
-      const animate = () => {
-        timeRef.current += 16;
-        draw(ctx, timeRef.current, negativeOrderMoments);
-        animationRef.current = requestAnimationFrame(animate);
-      };
-      animate();
-
-      return () => {
-        if (animationRef.current) {
-          cancelAnimationFrame(animationRef.current);
-        }
-      };
-    } else {
-      draw(ctx, 0, negativeOrderMoments);
-    }
-  }, [draw, animated, negativeOrderMoments]);
-
-  // Redraw on resize
-  useEffect(() => {
-    const handleResize = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      ctx.scale(dpr, dpr);
-      canvas.style.width = `${rect.width}px`;
-      canvas.style.height = `${rect.height}px`;
-      
-      draw(ctx, timeRef.current, negativeOrderMoments);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [draw]);
+  /* gradient id */
+  const gradId = `intensity-grad-${domain}`;
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="simulation-canvas w-full h-full min-h-[400px]"
+      className="w-full h-full min-h-[400px] flex flex-col"
     >
-      <canvas
-        ref={canvasRef}
-        className="w-full h-full"
-        style={{ display: 'block' }}
-      />
+      {/* Legend strip */}
+      <div className="flex flex-wrap items-center gap-4 mb-2 px-1 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span
+            className="w-3 h-[2px] rounded"
+            style={{ background: theme.stroke }}
+          />
+          I(x) — {theme.intensityName}
+        </span>
+        {showCentroid && moments.zerothMoment > 0 && (
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-[2px] rounded" style={{ background: CENTROID_COLOR, borderTop: '1px dashed' }} />
+            x̄ Centroid
+          </span>
+        )}
+        {showDispersion && sigma > 0 && moments.zerothMoment > 0 && (
+          <span className="flex items-center gap-1.5">
+            <span
+              className="w-3 h-2 rounded-sm opacity-40"
+              style={{ background: SIGMA_COLOR }}
+            />
+            ±σ Spread (μ₂)
+          </span>
+        )}
+        {showEffectiveWidth && wEffLeft != null && (
+          <span className="flex items-center gap-1.5">
+            <span
+              className="w-3 h-2 rounded-sm opacity-40"
+              style={{ background: WEFF_COLOR }}
+            />
+            w<sub>eff</sub> Localization (μ₋ₖ)
+          </span>
+        )}
+      </div>
+
+      {/* Chart */}
+      <div className="flex-1 min-h-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart
+            data={data}
+            margin={{ top: 12, right: 16, bottom: 36, left: 12 }}
+          >
+            <defs>
+              <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={theme.fill} stopOpacity={0.35} />
+                <stop offset="95%" stopColor={theme.fill} stopOpacity={0.03} />
+              </linearGradient>
+            </defs>
+
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="hsl(220, 20%, 15%)"
+              vertical={true}
+            />
+
+            {/* Dispersion band — render first so it's behind the curve */}
+            {showDispersion && sigma > 0 && moments.zerothMoment > 0 && (
+              <ReferenceArea
+                x1={Math.max(field.domain[0], sigmaLeft)}
+                x2={Math.min(field.domain[1], sigmaRight)}
+                fill={SIGMA_COLOR}
+                fillOpacity={0.1}
+                stroke={SIGMA_COLOR}
+                strokeOpacity={0.3}
+                strokeDasharray="4 4"
+              />
+            )}
+
+            {/* Effective width band */}
+            {showEffectiveWidth && wEffLeft != null && wEffRight != null && (
+              <ReferenceArea
+                x1={Math.max(field.domain[0], wEffLeft)}
+                x2={Math.min(field.domain[1], wEffRight)}
+                fill={WEFF_COLOR}
+                fillOpacity={0.08}
+                stroke={WEFF_COLOR}
+                strokeOpacity={0.35}
+                strokeDasharray="6 3"
+              />
+            )}
+
+            <XAxis
+              dataKey="x"
+              type="number"
+              domain={[field.domain[0], field.domain[1]]}
+              tickCount={8}
+              tick={{ fill: 'hsl(215, 20%, 55%)', fontSize: 11 }}
+              axisLine={{ stroke: 'hsl(210, 40%, 30%)' }}
+              tickLine={{ stroke: 'hsl(210, 40%, 30%)' }}
+              label={{
+                value: `Position x  [${theme.positionUnit}]`,
+                position: 'insideBottom',
+                offset: -20,
+                style: { fill: 'hsl(210, 40%, 70%)', fontSize: 12 },
+              }}
+            />
+            <YAxis
+              domain={[0, (dMax: number) => Math.ceil(dMax * 1.15 * 100) / 100]}
+              tickCount={6}
+              tick={{ fill: 'hsl(215, 20%, 55%)', fontSize: 11 }}
+              axisLine={{ stroke: 'hsl(210, 40%, 30%)' }}
+              tickLine={{ stroke: 'hsl(210, 40%, 30%)' }}
+              label={{
+                value: `I(x)  [${theme.intensityUnit}]`,
+                angle: -90,
+                position: 'insideLeft',
+                offset: 4,
+                style: {
+                  fill: 'hsl(210, 40%, 70%)',
+                  fontSize: 12,
+                  textAnchor: 'middle',
+                },
+              }}
+            />
+
+            <Tooltip
+              content={
+                <CustomTooltip
+                  domain={domain}
+                  moments={moments}
+                  negMoments={negativeOrderMoments}
+                />
+              }
+              cursor={{
+                stroke: 'hsl(210, 40%, 40%)',
+                strokeWidth: 1,
+                strokeDasharray: '4 2',
+              }}
+            />
+
+            {/* Main curve */}
+            <Area
+              type="monotone"
+              dataKey="I"
+              stroke={theme.stroke}
+              strokeWidth={2.5}
+              fill={`url(#${gradId})`}
+              animationDuration={600}
+              animationEasing="ease-in-out"
+              dot={false}
+              activeDot={{
+                r: 4,
+                stroke: theme.glow,
+                strokeWidth: 2,
+                fill: theme.stroke,
+              }}
+            />
+
+            {/* Centroid reference line */}
+            {showCentroid && moments.zerothMoment > 0 && (
+              <ReferenceLine
+                x={parseFloat(moments.centroid.toFixed(4))}
+                stroke={CENTROID_COLOR}
+                strokeWidth={2}
+                strokeDasharray="8 4"
+                label={{
+                  value: `x̄ = ${moments.centroid.toFixed(3)}`,
+                  position: 'top',
+                  fill: CENTROID_COLOR,
+                  fontSize: 11,
+                  fontFamily: 'JetBrains Mono, monospace',
+                }}
+              />
+            )}
+
+            {/* σ boundary lines */}
+            {showDispersion && sigma > 0 && moments.zerothMoment > 0 && (
+              <>
+                {sigmaLeft >= field.domain[0] && (
+                  <ReferenceLine
+                    x={parseFloat(sigmaLeft.toFixed(4))}
+                    stroke={SIGMA_COLOR}
+                    strokeWidth={1}
+                    strokeDasharray="4 4"
+                    label={{
+                      value: '−σ',
+                      position: 'top',
+                      fill: SIGMA_COLOR,
+                      fontSize: 10,
+                    }}
+                  />
+                )}
+                {sigmaRight <= field.domain[1] && (
+                  <ReferenceLine
+                    x={parseFloat(sigmaRight.toFixed(4))}
+                    stroke={SIGMA_COLOR}
+                    strokeWidth={1}
+                    strokeDasharray="4 4"
+                    label={{
+                      value: '+σ',
+                      position: 'top',
+                      fill: SIGMA_COLOR,
+                      fontSize: 10,
+                    }}
+                  />
+                )}
+              </>
+            )}
+
+            {/* w_eff boundary lines */}
+            {showEffectiveWidth && wEffLeft != null && wEffRight != null && (
+              <>
+                {wEffLeft >= field.domain[0] && (
+                  <ReferenceLine
+                    x={parseFloat(wEffLeft.toFixed(4))}
+                    stroke={WEFF_COLOR}
+                    strokeWidth={1}
+                    strokeDasharray="6 3"
+                  />
+                )}
+                {wEffRight <= field.domain[1] && (
+                  <ReferenceLine
+                    x={parseFloat(wEffRight.toFixed(4))}
+                    stroke={WEFF_COLOR}
+                    strokeWidth={1}
+                    strokeDasharray="6 3"
+                  />
+                )}
+              </>
+            )}
+
+            {/* Brush for zoom / pan */}
+            <Brush
+              dataKey="x"
+              height={20}
+              stroke="hsl(210, 40%, 30%)"
+              fill="hsl(222, 47%, 9%)"
+              travellerWidth={8}
+              tickFormatter={(v: number) => v.toFixed(1)}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Moment summary bar */}
+      {moments.zerothMoment > 0 && (
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 mt-2 px-1 text-[10px] font-mono text-muted-foreground">
+          <span>
+            I₀ = <span className="text-foreground">{moments.zerothMoment.toFixed(4)}</span>
+          </span>
+          <span>
+            x̄ = <span className="text-foreground">{moments.centroid.toFixed(4)}</span>
+          </span>
+          <span>
+            σ = <span className="text-foreground">{moments.standardDeviation.toFixed(4)}</span>
+          </span>
+          {negativeOrderMoments && wEff != null && wEff < Infinity && (
+            <span>
+              w<sub>eff</sub> ={' '}
+              <span className="text-foreground">{wEff.toFixed(4)}</span>
+            </span>
+          )}
+          <span>
+            γ₁ = <span className="text-foreground">{moments.skewness.toFixed(3)}</span>
+          </span>
+          <span>
+            κ = <span className="text-foreground">{moments.kurtosis.toFixed(3)}</span>
+          </span>
+        </div>
+      )}
     </motion.div>
   );
 }
