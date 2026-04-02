@@ -6,10 +6,11 @@ import {
   FlaskConical,
   Square,
   Box,
-  TableProperties
+  TableProperties,
+  ArrowLeftRight
 } from 'lucide-react';
 
-export type ActiveTab = 'simulator' | 'surface2d' | 'volume3d' | 'dictionary' | 'library';
+export type ActiveTab = 'simulator' | 'surface2d' | 'volume3d' | 'comparison' | 'dictionary' | 'library';
 
 interface HeaderProps {
   activeTab: ActiveTab;
