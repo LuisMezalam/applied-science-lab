@@ -74,6 +74,14 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
               <span className="hidden sm:inline">3D</span>
             </Button>
             <Button
+              variant={activeTab === 'comparison' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => onTabChange('comparison')}
+              className="gap-2"
+            >
+              <ArrowLeftRight className="h-4 w-4" />
+              <span className="hidden sm:inline">Compare</span>
+            </Button>
               variant={activeTab === 'dictionary' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => onTabChange('dictionary')}
