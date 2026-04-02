@@ -60,6 +60,12 @@
     --heat-glow: 20 100% 65%;
     --fluids: 180 70% 50%;
     --fluids-glow: 180 80% 60%;
+    --dynamics: 270 75% 60%;
+    --dynamics-glow: 270 85% 72%;
+    --circuits: 45 95% 55%;
+    --circuits-glow: 45 100% 65%;
+    --propulsion: 340 80% 58%;
+    --propulsion-glow: 340 90% 70%;
     --math: 280 80% 65%;
     --math-glow: 280 90% 75%;
 
