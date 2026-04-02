@@ -54,14 +54,15 @@ export function MomentSimulator() {
 
   // Get domain-specific units
   const units = useMemo(() => {
-    switch (activeDomain) {
-      case 'structures':
-        return { intensity: 'N/m', position: 'm' };
-      case 'heat':
-        return { intensity: 'W/m²', position: 'm' };
-      case 'fluids':
-        return { intensity: 'Pa', position: 'm' };
-    }
+    const unitMap: Record<DomainType, { intensity: string; position: string }> = {
+      structures: { intensity: 'N/m', position: 'm' },
+      heat: { intensity: 'W/m²', position: 'm' },
+      fluids: { intensity: 'Pa', position: 'm' },
+      dynamics: { intensity: 'N or J/s', position: 's' },
+      circuits: { intensity: 'W', position: 'node' },
+      propulsion: { intensity: 'N/m²', position: 'm' },
+    };
+    return unitMap[activeDomain];
   }, [activeDomain]);
 
   return (
