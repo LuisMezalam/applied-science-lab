@@ -101,6 +101,7 @@ const gaussianLoad: LoadingProfile = {
   name: 'Gaussian Distribution',
   description: 'Bell curve intensity (e.g., localized heating, point load spread)',
   domain: 'heat',
+  dictionaryRef: 'M-003',
   generator: (x: number, params: LoadingParams) => {
     const center = params.position ?? params.length / 2;
     const width = params.width ?? params.length / 6;
