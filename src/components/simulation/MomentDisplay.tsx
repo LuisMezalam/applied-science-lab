@@ -12,6 +12,7 @@ interface MomentDisplayProps {
   moments: MomentResults;
   negativeOrderMoments?: NegativeOrderMoments;
   domain: DomainType;
+  dictionaryRef?: string;
   units?: {
     intensity: string;
     position: string;
