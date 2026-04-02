@@ -5,7 +5,7 @@ import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Beaker, Flame, Droplets, Building2 } from 'lucide-react';
+import { Beaker, Flame, Droplets, Building2, Activity, Zap, Rocket } from 'lucide-react';
 
 interface LoadingControlsProps {
   selectedProfile: LoadingProfile;
@@ -16,10 +16,13 @@ interface LoadingControlsProps {
   onDomainChange: (domain: DomainType) => void;
 }
 
-const domainIcons = {
+const domainIcons: Record<string, typeof Building2> = {
   structures: Building2,
   heat: Flame,
   fluids: Droplets,
+  dynamics: Activity,
+  circuits: Zap,
+  propulsion: Rocket,
 };
 
 const domainColors: Record<DomainType, string> = {
