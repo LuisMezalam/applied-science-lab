@@ -207,6 +207,7 @@ const boundaryLayer: LoadingProfile = {
   name: 'Boundary Layer',
   description: 'Power-law velocity profile in boundary layer (τ proportional to du/dy)',
   domain: 'fluids',
+  dictionaryRef: 'M-005',
   generator: (x: number, params: LoadingParams) => {
     if (x >= 0 && x <= params.length) {
       const normalized = x / params.length;
