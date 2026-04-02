@@ -27,6 +27,7 @@ const triangularLoad: LoadingProfile = {
   name: 'Triangular Load',
   description: 'Linearly varying load (e.g., hydrostatic pressure on dam, linearly varying heat source)',
   domain: 'structures',
+  dictionaryRef: 'M-001',
   generator: (x: number, params: LoadingParams) => {
     if (x >= 0 && x <= params.length) {
       return params.magnitude * (x / params.length);
