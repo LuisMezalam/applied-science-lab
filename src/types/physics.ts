@@ -56,6 +56,8 @@ export interface LoadingProfile {
   generator: (x: number, params: LoadingParams) => number;
   // Default parameters
   defaultParams: LoadingParams;
+  // Reference to dictionary entry (e.g., 'M-001')
+  dictionaryRef?: string;
 }
 
 export interface LoadingParams {
