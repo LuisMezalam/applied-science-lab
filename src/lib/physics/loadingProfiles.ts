@@ -185,6 +185,7 @@ const pressureProfile: LoadingProfile = {
   name: 'Pressure Profile',
   description: 'Typical aerodynamic pressure distribution (e.g., airfoil loading)',
   domain: 'fluids',
+  dictionaryRef: 'M-002',
   generator: (x: number, params: LoadingParams) => {
     if (x >= 0 && x <= params.length) {
       const normalized = x / params.length;
