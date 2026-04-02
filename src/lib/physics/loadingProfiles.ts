@@ -82,6 +82,7 @@ const sinusoidalLoad: LoadingProfile = {
   name: 'Sinusoidal Load',
   description: 'Half-sine distribution (e.g., thermal gradients, pressure pulses)',
   domain: 'heat',
+  dictionaryRef: 'M-003',
   generator: (x: number, params: LoadingParams) => {
     if (x >= 0 && x <= params.length) {
       return params.magnitude * Math.sin(Math.PI * x / params.length);
