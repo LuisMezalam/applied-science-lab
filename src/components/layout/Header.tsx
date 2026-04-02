@@ -82,7 +82,7 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
               <ArrowLeftRight className="h-4 w-4" />
               <span className="hidden sm:inline">Compare</span>
             </Button>
-              variant={activeTab === 'dictionary' ? 'secondary' : 'ghost'}
+            <Button
               size="sm"
               onClick={() => onTabChange('dictionary')}
               className="gap-2"
