@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Header, ActiveTab } from '@/components/layout/Header';
 import { MomentSimulator } from '@/components/simulation/MomentSimulator';
+import { CrossDomainComparison } from '@/components/simulation/CrossDomainComparison';
 import { Surface2DSimulator } from '@/components/simulation/Surface2DSimulator';
 import { Volume3DSimulator } from '@/components/simulation/Volume3DSimulator';
 import { KnowledgeLibrary } from '@/components/knowledge/KnowledgeLibrary';
