@@ -56,8 +56,8 @@ export function LoadingControls({
           Engineering Domain
         </Label>
         <Tabs value={activeDomain} onValueChange={(v) => onDomainChange(v as DomainType)}>
-          <TabsList className="grid grid-cols-3 h-auto p-1">
-            {(['structures', 'heat', 'fluids'] as DomainType[]).map((domain) => {
+          <TabsList className="grid grid-cols-3 gap-1 h-auto p-1">
+            {(['structures', 'heat', 'fluids', 'dynamics', 'circuits', 'propulsion'] as DomainType[]).map((domain) => {
               const Icon = domainIcons[domain];
               return (
                 <TabsTrigger

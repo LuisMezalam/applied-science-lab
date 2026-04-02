@@ -100,7 +100,7 @@ function MomentCard({
   );
 }
 
-export function MomentDisplay({ moments, negativeOrderMoments, domain, units }: MomentDisplayProps) {
+export function MomentDisplay({ moments, negativeOrderMoments, domain, dictionaryRef, units }: MomentDisplayProps) {
   const posUnit = units?.position || 'm';
   const intUnit = units?.intensity || 'N/m';
 
@@ -111,6 +111,17 @@ export function MomentDisplay({ moments, negativeOrderMoments, domain, units }: 
       animate="visible"
       className="space-y-3"
     >
+      {/* Dictionary cross-reference */}
+      {dictionaryRef && (
+        <div className="flex items-center gap-2 px-2 py-1.5 rounded bg-primary/10 border border-primary/20 text-xs">
+          <Info className="h-3.5 w-3.5 text-primary shrink-0" />
+          <span className="text-muted-foreground">
+            Dictionary entry: <span className="text-primary font-mono font-medium">{dictionaryRef}</span>
+            {' — see Master Dictionary for full moment ladder & sign-handling policy'}
+          </span>
+        </div>
+      )}
+
       {/* n-Moment Ladder Section */}
       <div className="mb-4">
         <h3 className="text-sm font-medium text-foreground/80 mb-3 flex items-center gap-2">

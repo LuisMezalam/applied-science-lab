@@ -242,6 +242,7 @@ export function MomentSimulator() {
               moments={moments}
               negativeOrderMoments={negativeOrderMoments}
               domain={activeDomain}
+              dictionaryRef={selectedProfile.dictionaryRef}
               units={units}
             />
           </CardContent>

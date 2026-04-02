@@ -61,6 +61,33 @@ const DOMAIN_THEMES: Record<string, {
     positionUnit: 'm',
     intensityUnit: 'Pa',
   },
+  dynamics: {
+    stroke: 'hsl(265, 80%, 60%)',
+    fill: 'hsl(265, 80%, 60%)',
+    glow: 'hsl(265, 90%, 70%)',
+    label: 'Dynamics',
+    intensityName: 'Force / Dissipation',
+    positionUnit: 's',
+    intensityUnit: 'N or J/s',
+  },
+  circuits: {
+    stroke: 'hsl(45, 95%, 55%)',
+    fill: 'hsl(45, 95%, 55%)',
+    glow: 'hsl(45, 100%, 65%)',
+    label: 'Circuits',
+    intensityName: 'Power Dissipation',
+    positionUnit: 'node',
+    intensityUnit: 'W',
+  },
+  propulsion: {
+    stroke: 'hsl(140, 70%, 50%)',
+    fill: 'hsl(140, 70%, 50%)',
+    glow: 'hsl(140, 80%, 60%)',
+    label: 'Propulsion',
+    intensityName: 'Thrust Density',
+    positionUnit: 'm',
+    intensityUnit: 'N/m²',
+  },
 };
 
 const CENTROID_COLOR = '#FBBF24';
