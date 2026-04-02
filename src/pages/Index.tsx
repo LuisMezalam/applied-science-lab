@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Header, ActiveTab } from '@/components/layout/Header';
 import { MomentSimulator } from '@/components/simulation/MomentSimulator';
+import { CrossDomainComparison } from '@/components/simulation/CrossDomainComparison';
 import { Surface2DSimulator } from '@/components/simulation/Surface2DSimulator';
 import { Volume3DSimulator } from '@/components/simulation/Volume3DSimulator';
 import { KnowledgeLibrary } from '@/components/knowledge/KnowledgeLibrary';
@@ -160,6 +161,17 @@ const Index = () => {
               className="min-h-[600px]"
             >
               <Volume3DSimulator />
+            </motion.div>
+          )}
+          {activeTab === 'comparison' && (
+            <motion.div
+              key="comparison"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="min-h-[600px]"
+            >
+              <CrossDomainComparison />
             </motion.div>
           )}
           {activeTab === 'dictionary' && (

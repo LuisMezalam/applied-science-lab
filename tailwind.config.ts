@@ -69,6 +69,9 @@ export default {
         structures: "hsl(var(--structures))",
         heat: "hsl(var(--heat))",
         fluids: "hsl(var(--fluids))",
+        dynamics: "hsl(var(--dynamics))",
+        circuits: "hsl(var(--circuits))",
+        propulsion: "hsl(var(--propulsion))",
         math: "hsl(var(--math))",
         chart: {
           1: "hsl(var(--chart-1))",
