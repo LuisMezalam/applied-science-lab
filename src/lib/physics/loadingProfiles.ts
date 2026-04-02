@@ -8,6 +8,7 @@ const uniformLoad: LoadingProfile = {
   name: 'Uniform Load',
   description: 'Constant intensity across the domain (e.g., uniform beam load, constant heat flux)',
   domain: 'structures',
+  dictionaryRef: 'M-001',
   generator: (x: number, params: LoadingParams) => {
     if (x >= 0 && x <= params.length) {
       return params.magnitude;
