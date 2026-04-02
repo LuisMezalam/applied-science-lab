@@ -163,6 +163,17 @@ const Index = () => {
               <Volume3DSimulator />
             </motion.div>
           )}
+          {activeTab === 'comparison' && (
+            <motion.div
+              key="comparison"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="min-h-[600px]"
+            >
+              <CrossDomainComparison />
+            </motion.div>
+          )}
           {activeTab === 'dictionary' && (
             <motion.div
               key="dictionary"
