@@ -347,7 +347,7 @@ export function SimulationCanvas({
               }}
             />
             <YAxis
-              domain={[0, (dMax: number) => Math.ceil(dMax * 1.15 * 100) / 100]}
+              domain={hasJordan ? ['auto', 'auto'] : [0, (dMax: number) => Math.ceil(dMax * 1.15 * 100) / 100]}
               tickCount={6}
               tick={{ fill: 'hsl(215, 20%, 55%)', fontSize: 11 }}
               axisLine={{ stroke: 'hsl(210, 40%, 30%)' }}
