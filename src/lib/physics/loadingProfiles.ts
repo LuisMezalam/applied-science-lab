@@ -554,6 +554,13 @@ export const loadingProfiles: LoadingProfile[] = [
   pressureThrust,
   performanceCurve,
   machFlowParam,
+  // Signed profiles (Jordan decomposition)
+  fullSineWave,
+  bendingMoment,
+  alternatingThermal,
+  signedPressure,
+  signedHarmonic,
+  acPower,
 ];
 
 // Group profiles by domain
