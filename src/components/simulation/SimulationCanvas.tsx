@@ -94,6 +94,8 @@ const DOMAIN_THEMES: Record<string, {
 const CENTROID_COLOR = '#FBBF24';
 const SIGMA_COLOR = 'hsl(280, 80%, 65%)';
 const WEFF_COLOR = '#22D3EE';
+const JORDAN_POS_COLOR = 'hsl(160, 70%, 50%)';
+const JORDAN_NEG_COLOR = 'hsl(350, 70%, 55%)';
 
 /* ---------- custom tooltip ---------- */
 function CustomTooltip({
