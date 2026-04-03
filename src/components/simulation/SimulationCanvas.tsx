@@ -380,13 +380,52 @@ export function SimulationCanvas({
               }}
             />
 
+            {/* Zero line for signed fields */}
+            {hasJordan && (
+              <ReferenceLine
+                y={0}
+                stroke="hsl(210, 40%, 40%)"
+                strokeWidth={1}
+                strokeDasharray="4 4"
+              />
+            )}
+
+            {/* S⁺ positive part */}
+            {hasJordan && (
+              <Area
+                type="monotone"
+                dataKey="Splus"
+                stroke={JORDAN_POS_COLOR}
+                strokeWidth={1.5}
+                fill={`url(#${gradPosId})`}
+                animationDuration={600}
+                dot={false}
+                activeDot={false}
+              />
+            )}
+
+            {/* S⁻ negative part (plotted as negative values) */}
+            {hasJordan && (
+              <Area
+                type="monotone"
+                dataKey="Sminus"
+                stroke={JORDAN_NEG_COLOR}
+                strokeWidth={1.5}
+                fill={`url(#${gradNegId})`}
+                animationDuration={600}
+                dot={false}
+                activeDot={false}
+              />
+            )}
+
             {/* Main curve */}
             <Area
               type="monotone"
               dataKey="I"
-              stroke={theme.stroke}
-              strokeWidth={2.5}
-              fill={`url(#${gradId})`}
+              stroke={hasJordan ? 'hsl(210, 40%, 60%)' : theme.stroke}
+              strokeWidth={hasJordan ? 1.5 : 2.5}
+              strokeDasharray={hasJordan ? '6 3' : undefined}
+              fill={hasJordan ? 'none' : `url(#${gradId})`}
               animationDuration={600}
               animationEasing="ease-in-out"
               dot={false}
