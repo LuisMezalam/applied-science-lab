@@ -454,6 +454,26 @@ export function SimulationCanvas({
               />
             )}
 
+            {/* Jordan centroid markers */}
+            {hasJordan && jordan!.positiveMoments.zerothMoment > 0 && (
+              <ReferenceLine
+                x={parseFloat(jordan!.positiveMoments.centroid.toFixed(4))}
+                stroke={JORDAN_POS_COLOR}
+                strokeWidth={1.5}
+                strokeDasharray="4 4"
+                label={{ value: 'x̄⁺', position: 'top', fill: JORDAN_POS_COLOR, fontSize: 10 }}
+              />
+            )}
+            {hasJordan && jordan!.negativeMoments.zerothMoment > 0 && (
+              <ReferenceLine
+                x={parseFloat(jordan!.negativeMoments.centroid.toFixed(4))}
+                stroke={JORDAN_NEG_COLOR}
+                strokeWidth={1.5}
+                strokeDasharray="4 4"
+                label={{ value: 'x̄⁻', position: 'top', fill: JORDAN_NEG_COLOR, fontSize: 10 }}
+              />
+            )}
+
             {/* σ boundary lines */}
             {showDispersion && sigma > 0 && moments.zerothMoment > 0 && (
               <>
