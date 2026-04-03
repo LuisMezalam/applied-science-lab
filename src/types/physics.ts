@@ -74,6 +74,8 @@ export interface LoadingProfile {
   defaultParams: LoadingParams;
   // Reference to dictionary entry (e.g., 'M-001')
   dictionaryRef?: string;
+  // Whether this profile can produce negative values (signed field)
+  signed?: boolean;
 }
 
 export interface LoadingParams {
