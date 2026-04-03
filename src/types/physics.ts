@@ -47,6 +47,22 @@ export interface NegativeOrderMoments {
   effectiveWidth2: number;
 }
 
+export interface JordanDecomposition {
+  // S⁺(x) = max(I(x), 0) — positive part
+  positivePart: IntensityField;
+  // S⁻(x) = max(-I(x), 0) — negative part (stored as non-negative values)
+  negativePart: IntensityField;
+  // Moment ladders for each component
+  positiveMoments: MomentResults;
+  negativeMoments: MomentResults;
+  // Total variation |S| = S⁺ + S⁻
+  totalVariation: number;
+  // Net resultant = S⁺ - S⁻ (= I₀ of original)
+  netResultant: number;
+  // Ratio: how "signed" the field is (0 = all positive, 1 = perfectly balanced)
+  signedRatio: number;
+}
+
 export interface LoadingProfile {
   id: string;
   name: string;
