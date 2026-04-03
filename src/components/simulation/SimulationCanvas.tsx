@@ -202,7 +202,8 @@ export function SimulationCanvas({
     }));
   }, [field, jordan, hasJordan]);
 
-  const maxI = useMemo(() => Math.max(...field.values, 0.01), [field]);
+  const maxI = useMemo(() => Math.max(...field.values.map(Math.abs), 0.01), [field]);
+  const minI = useMemo(() => Math.min(...field.values, 0), [field]);
 
   /* sigma bounds */
   const sigma = moments.standardDeviation;
@@ -216,8 +217,10 @@ export function SimulationCanvas({
   const wEffRight =
     wEff != null && wEff < Infinity ? moments.centroid + wEff / 2 : undefined;
 
-  /* gradient id */
+  /* gradient ids */
   const gradId = `intensity-grad-${domain}`;
+  const gradPosId = `jordan-pos-${domain}`;
+  const gradNegId = `jordan-neg-${domain}`;
 
   return (
     <motion.div
