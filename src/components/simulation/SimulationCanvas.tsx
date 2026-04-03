@@ -12,7 +12,7 @@ import {
   ResponsiveContainer,
   Brush,
 } from 'recharts';
-import { IntensityField, MomentResults, DomainType, NegativeOrderMoments } from '@/types/physics';
+import { IntensityField, MomentResults, DomainType, NegativeOrderMoments, JordanDecomposition } from '@/types/physics';
 
 interface SimulationCanvasProps {
   field: IntensityField;
@@ -23,6 +23,7 @@ interface SimulationCanvasProps {
   showEffectiveWidth?: boolean;
   negativeOrderMoments?: NegativeOrderMoments;
   animated?: boolean;
+  jordan?: JordanDecomposition;
 }
 
 const DOMAIN_THEMES: Record<string, {
@@ -93,6 +94,8 @@ const DOMAIN_THEMES: Record<string, {
 const CENTROID_COLOR = '#FBBF24';
 const SIGMA_COLOR = 'hsl(280, 80%, 65%)';
 const WEFF_COLOR = '#22D3EE';
+const JORDAN_POS_COLOR = 'hsl(160, 70%, 50%)';
+const JORDAN_NEG_COLOR = 'hsl(350, 70%, 55%)';
 
 /* ---------- custom tooltip ---------- */
 function CustomTooltip({
@@ -183,18 +186,26 @@ export function SimulationCanvas({
   showDispersion = true,
   showEffectiveWidth = false,
   negativeOrderMoments,
+  jordan,
 }: SimulationCanvasProps) {
   const theme = DOMAIN_THEMES[domain] ?? DOMAIN_THEMES.structures;
+
+  const hasJordan = !!jordan;
 
   /* build chart data */
   const data = useMemo(() => {
     return field.positions.map((pos, i) => ({
       x: parseFloat(pos.toFixed(4)),
       I: field.values[i],
+      ...(hasJordan ? {
+        Splus: jordan!.positivePart.values[i],
+        Sminus: -jordan!.negativePart.values[i], // negative for display below axis
+      } : {}),
     }));
-  }, [field]);
+  }, [field, jordan, hasJordan]);
 
-  const maxI = useMemo(() => Math.max(...field.values, 0.01), [field]);
+  const maxI = useMemo(() => Math.max(...field.values.map(Math.abs), 0.01), [field]);
+  const minI = useMemo(() => Math.min(...field.values, 0), [field]);
 
   /* sigma bounds */
   const sigma = moments.standardDeviation;
@@ -208,8 +219,10 @@ export function SimulationCanvas({
   const wEffRight =
     wEff != null && wEff < Infinity ? moments.centroid + wEff / 2 : undefined;
 
-  /* gradient id */
+  /* gradient ids */
   const gradId = `intensity-grad-${domain}`;
+  const gradPosId = `jordan-pos-${domain}`;
+  const gradNegId = `jordan-neg-${domain}`;
 
   return (
     <motion.div
@@ -250,6 +263,18 @@ export function SimulationCanvas({
             w<sub>eff</sub> Localization (μ₋ₖ)
           </span>
         )}
+        {hasJordan && (
+          <>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-2 rounded-sm" style={{ background: JORDAN_POS_COLOR, opacity: 0.6 }} />
+              S⁺ Positive
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-2 rounded-sm" style={{ background: JORDAN_NEG_COLOR, opacity: 0.6 }} />
+              S⁻ Negative
+            </span>
+          </>
+        )}
       </div>
 
       {/* Chart */}
@@ -263,6 +288,14 @@ export function SimulationCanvas({
               <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor={theme.fill} stopOpacity={0.35} />
                 <stop offset="95%" stopColor={theme.fill} stopOpacity={0.03} />
+              </linearGradient>
+              <linearGradient id={gradPosId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={JORDAN_POS_COLOR} stopOpacity={0.4} />
+                <stop offset="95%" stopColor={JORDAN_POS_COLOR} stopOpacity={0.02} />
+              </linearGradient>
+              <linearGradient id={gradNegId} x1="0" y1="1" x2="0" y2="0">
+                <stop offset="5%" stopColor={JORDAN_NEG_COLOR} stopOpacity={0.4} />
+                <stop offset="95%" stopColor={JORDAN_NEG_COLOR} stopOpacity={0.02} />
               </linearGradient>
             </defs>
 
@@ -314,7 +347,7 @@ export function SimulationCanvas({
               }}
             />
             <YAxis
-              domain={[0, (dMax: number) => Math.ceil(dMax * 1.15 * 100) / 100]}
+              domain={hasJordan ? ['auto', 'auto'] : [0, (dMax: number) => Math.ceil(dMax * 1.15 * 100) / 100]}
               tickCount={6}
               tick={{ fill: 'hsl(215, 20%, 55%)', fontSize: 11 }}
               axisLine={{ stroke: 'hsl(210, 40%, 30%)' }}
@@ -347,13 +380,52 @@ export function SimulationCanvas({
               }}
             />
 
+            {/* Zero line for signed fields */}
+            {hasJordan && (
+              <ReferenceLine
+                y={0}
+                stroke="hsl(210, 40%, 40%)"
+                strokeWidth={1}
+                strokeDasharray="4 4"
+              />
+            )}
+
+            {/* S⁺ positive part */}
+            {hasJordan && (
+              <Area
+                type="monotone"
+                dataKey="Splus"
+                stroke={JORDAN_POS_COLOR}
+                strokeWidth={1.5}
+                fill={`url(#${gradPosId})`}
+                animationDuration={600}
+                dot={false}
+                activeDot={false}
+              />
+            )}
+
+            {/* S⁻ negative part (plotted as negative values) */}
+            {hasJordan && (
+              <Area
+                type="monotone"
+                dataKey="Sminus"
+                stroke={JORDAN_NEG_COLOR}
+                strokeWidth={1.5}
+                fill={`url(#${gradNegId})`}
+                animationDuration={600}
+                dot={false}
+                activeDot={false}
+              />
+            )}
+
             {/* Main curve */}
             <Area
               type="monotone"
               dataKey="I"
-              stroke={theme.stroke}
-              strokeWidth={2.5}
-              fill={`url(#${gradId})`}
+              stroke={hasJordan ? 'hsl(210, 40%, 60%)' : theme.stroke}
+              strokeWidth={hasJordan ? 1.5 : 2.5}
+              strokeDasharray={hasJordan ? '6 3' : undefined}
+              fill={hasJordan ? 'none' : `url(#${gradId})`}
               animationDuration={600}
               animationEasing="ease-in-out"
               dot={false}
@@ -379,6 +451,26 @@ export function SimulationCanvas({
                   fontSize: 11,
                   fontFamily: 'JetBrains Mono, monospace',
                 }}
+              />
+            )}
+
+            {/* Jordan centroid markers */}
+            {hasJordan && jordan!.positiveMoments.zerothMoment > 0 && (
+              <ReferenceLine
+                x={parseFloat(jordan!.positiveMoments.centroid.toFixed(4))}
+                stroke={JORDAN_POS_COLOR}
+                strokeWidth={1.5}
+                strokeDasharray="4 4"
+                label={{ value: 'x̄⁺', position: 'top', fill: JORDAN_POS_COLOR, fontSize: 10 }}
+              />
+            )}
+            {hasJordan && jordan!.negativeMoments.zerothMoment > 0 && (
+              <ReferenceLine
+                x={parseFloat(jordan!.negativeMoments.centroid.toFixed(4))}
+                stroke={JORDAN_NEG_COLOR}
+                strokeWidth={1.5}
+                strokeDasharray="4 4"
+                label={{ value: 'x̄⁻', position: 'top', fill: JORDAN_NEG_COLOR, fontSize: 10 }}
               />
             )}
 

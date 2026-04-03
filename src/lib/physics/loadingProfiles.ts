@@ -430,7 +430,103 @@ const machFlowParam: LoadingProfile = {
   defaultParams: { magnitude: 15, length: 10 },
 };
 
-// Export all profiles
+// ============= SIGNED PROFILES (for Jordan Decomposition) =============
+
+// Full sine wave (goes negative): w(x) = w₀ · sin(2πx/L)
+const fullSineWave: LoadingProfile = {
+  id: 'full-sine',
+  name: 'Full Sine Wave',
+  description: 'Complete sinusoidal cycle with positive and negative regions — ideal for Jordan decomposition',
+  domain: 'structures',
+  dictionaryRef: 'M-001',
+  signed: true,
+  generator: (x: number, params: LoadingParams) => {
+    if (x < 0 || x > params.length) return 0;
+    return params.magnitude * Math.sin(2 * Math.PI * x / params.length);
+  },
+  defaultParams: { magnitude: 15, length: 10 },
+};
+
+// Bending moment diagram (signed): M(x) for simply-supported beam with center load
+const bendingMoment: LoadingProfile = {
+  id: 'bending-moment',
+  name: 'Bending Moment M(x)',
+  description: 'Signed bending moment diagram — positive sagging, negative hogging regions',
+  domain: 'structures',
+  signed: true,
+  generator: (x: number, params: LoadingParams) => {
+    if (x < 0 || x > params.length) return 0;
+    const L = params.length;
+    // Continuous beam with overhang: creates sign change
+    const n = x / L;
+    return params.magnitude * (Math.sin(2 * Math.PI * n) + 0.4 * Math.sin(4 * Math.PI * n));
+  },
+  defaultParams: { magnitude: 20, length: 10 },
+};
+
+// Alternating thermal gradient
+const alternatingThermal: LoadingProfile = {
+  id: 'alternating-thermal',
+  name: 'Alternating Thermal',
+  description: 'Oscillating heat flux — heating and cooling zones along domain',
+  domain: 'heat',
+  signed: true,
+  generator: (x: number, params: LoadingParams) => {
+    if (x < 0 || x > params.length) return 0;
+    const n = x / params.length;
+    return params.magnitude * Math.cos(3 * Math.PI * n) * Math.exp(-0.5 * n);
+  },
+  defaultParams: { magnitude: 12, length: 10 },
+};
+
+// Signed pressure (suction + pressure)
+const signedPressure: LoadingProfile = {
+  id: 'signed-pressure',
+  name: 'Signed Pressure Δp',
+  description: 'Pressure coefficient with suction (negative) and compression (positive) zones — airfoil analogy',
+  domain: 'fluids',
+  dictionaryRef: 'M-002',
+  signed: true,
+  generator: (x: number, params: LoadingParams) => {
+    if (x < 0 || x > params.length) return 0;
+    const n = x / params.length;
+    // Leading edge suction peak (negative) transitioning to positive pressure recovery
+    return params.magnitude * (-2 * Math.sqrt(n) * Math.exp(-3 * n) + 0.5 * (1 - n));
+  },
+  defaultParams: { magnitude: 15, length: 10 },
+};
+
+// Harmonic force (signed, not rectified)
+const signedHarmonic: LoadingProfile = {
+  id: 'signed-harmonic',
+  name: 'Signed Harmonic F(t)',
+  description: 'Full sinusoidal force — push and pull phases in time domain',
+  domain: 'dynamics',
+  dictionaryRef: 'M-006',
+  signed: true,
+  generator: (x: number, params: LoadingParams) => {
+    if (x < 0 || x > params.length) return 0;
+    return params.magnitude * Math.sin(4 * Math.PI * x / params.length) * Math.exp(-0.3 * x / params.length);
+  },
+  defaultParams: { magnitude: 18, length: 10 },
+};
+
+// AC power (signed)
+const acPower: LoadingProfile = {
+  id: 'ac-power',
+  name: 'AC Power p(t)',
+  description: 'Instantaneous AC power — positive (delivered) and negative (reactive) phases',
+  domain: 'circuits',
+  dictionaryRef: 'M-011',
+  signed: true,
+  generator: (x: number, params: LoadingParams) => {
+    if (x < 0 || x > params.length) return 0;
+    const n = x / params.length;
+    // v(t)*i(t) with phase lag → signed power
+    return params.magnitude * Math.sin(4 * Math.PI * n) * Math.sin(4 * Math.PI * n - 0.8);
+  },
+  defaultParams: { magnitude: 14, length: 10 },
+};
 export const loadingProfiles: LoadingProfile[] = [
   uniformLoad,
   triangularLoad,
@@ -458,6 +554,13 @@ export const loadingProfiles: LoadingProfile[] = [
   pressureThrust,
   performanceCurve,
   machFlowParam,
+  // Signed profiles (Jordan decomposition)
+  fullSineWave,
+  bendingMoment,
+  alternatingThermal,
+  signedPressure,
+  signedHarmonic,
+  acPower,
 ];
 
 // Group profiles by domain
