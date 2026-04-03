@@ -289,6 +289,14 @@ export function SimulationCanvas({
                 <stop offset="5%" stopColor={theme.fill} stopOpacity={0.35} />
                 <stop offset="95%" stopColor={theme.fill} stopOpacity={0.03} />
               </linearGradient>
+              <linearGradient id={gradPosId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={JORDAN_POS_COLOR} stopOpacity={0.4} />
+                <stop offset="95%" stopColor={JORDAN_POS_COLOR} stopOpacity={0.02} />
+              </linearGradient>
+              <linearGradient id={gradNegId} x1="0" y1="1" x2="0" y2="0">
+                <stop offset="5%" stopColor={JORDAN_NEG_COLOR} stopOpacity={0.4} />
+                <stop offset="95%" stopColor={JORDAN_NEG_COLOR} stopOpacity={0.02} />
+              </linearGradient>
             </defs>
 
             <CartesianGrid
