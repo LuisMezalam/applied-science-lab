@@ -261,6 +261,18 @@ export function SimulationCanvas({
             w<sub>eff</sub> Localization (μ₋ₖ)
           </span>
         )}
+        {hasJordan && (
+          <>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-2 rounded-sm" style={{ background: JORDAN_POS_COLOR, opacity: 0.6 }} />
+              S⁺ Positive
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-2 rounded-sm" style={{ background: JORDAN_NEG_COLOR, opacity: 0.6 }} />
+              S⁻ Negative
+            </span>
+          </>
+        )}
       </div>
 
       {/* Chart */}
