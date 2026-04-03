@@ -91,7 +91,9 @@ export function LoadingControls({
                 onParamsChange(profile.defaultParams);
               }}
             >
-              <span className="truncate text-xs">{profile.name}</span>
+              <span className="truncate text-xs">
+                {profile.signed ? '± ' : ''}{profile.name}
+              </span>
             </Button>
           ))}
         </div>
