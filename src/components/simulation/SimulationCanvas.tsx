@@ -184,16 +184,23 @@ export function SimulationCanvas({
   showDispersion = true,
   showEffectiveWidth = false,
   negativeOrderMoments,
+  jordan,
 }: SimulationCanvasProps) {
   const theme = DOMAIN_THEMES[domain] ?? DOMAIN_THEMES.structures;
+
+  const hasJordan = !!jordan;
 
   /* build chart data */
   const data = useMemo(() => {
     return field.positions.map((pos, i) => ({
       x: parseFloat(pos.toFixed(4)),
       I: field.values[i],
+      ...(hasJordan ? {
+        Splus: jordan!.positivePart.values[i],
+        Sminus: -jordan!.negativePart.values[i], // negative for display below axis
+      } : {}),
     }));
-  }, [field]);
+  }, [field, jordan, hasJordan]);
 
   const maxI = useMemo(() => Math.max(...field.values, 0.01), [field]);
 
