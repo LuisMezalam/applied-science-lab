@@ -12,7 +12,7 @@ import {
   ResponsiveContainer,
   Brush,
 } from 'recharts';
-import { IntensityField, MomentResults, DomainType, NegativeOrderMoments } from '@/types/physics';
+import { IntensityField, MomentResults, DomainType, NegativeOrderMoments, JordanDecomposition } from '@/types/physics';
 
 interface SimulationCanvasProps {
   field: IntensityField;
@@ -23,6 +23,7 @@ interface SimulationCanvasProps {
   showEffectiveWidth?: boolean;
   negativeOrderMoments?: NegativeOrderMoments;
   animated?: boolean;
+  jordan?: JordanDecomposition;
 }
 
 const DOMAIN_THEMES: Record<string, {
