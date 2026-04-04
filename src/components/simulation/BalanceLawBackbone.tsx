@@ -311,8 +311,7 @@ function DomainCard({
       }`}
       style={{
         borderColor: isSelected ? mapping.hslStroke : undefined,
-        ringColor: isSelected ? mapping.hslStroke : undefined,
-        boxShadow: isSelected ? `0 4px 20px ${mapping.hslStroke}20` : undefined,
+        boxShadow: isSelected ? `0 0 0 2px ${mapping.hslStroke}, 0 4px 20px ${mapping.hslStroke}20` : undefined,
         background: isSelected ? `${mapping.hslStroke}08` : undefined,
       }}
     >
