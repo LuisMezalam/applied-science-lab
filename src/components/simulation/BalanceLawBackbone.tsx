@@ -1,13 +1,16 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { WalkthroughControls, StageHighlight, WALKTHROUGH_STEPS } from './backbone/WalkthroughOverlay';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { EquationRenderer } from '@/components/knowledge/EquationRenderer';
 import { DomainType } from '@/types/physics';
 import {
   ArrowRight,
   ArrowDown,
   Layers,
+  BookOpen,
   Zap,
   Flame,
   Droplets,
@@ -221,8 +224,17 @@ function TriFlowArrow({ color }: { color: string }) {
 
 /* ── Backbone diagram ── */
 
-function BackboneDiagram({ selected }: { selected: BalanceLawMapping | null }) {
+function BackboneDiagram({
+  selected,
+  walkthroughActive,
+  walkthroughStageId,
+}: {
+  selected: BalanceLawMapping | null;
+  walkthroughActive: boolean;
+  walkthroughStageId: string;
+}) {
   const arrowColor = selected ? selected.hslStroke : 'hsl(var(--primary))';
+  const hl = (id: string) => ({ active: walkthroughActive, stageId: id, currentStageId: walkthroughStageId });
 
   return (
     <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
@@ -235,119 +247,111 @@ function BackboneDiagram({ selected }: { selected: BalanceLawMapping | null }) {
       <CardContent>
         <div className="flex flex-col items-center gap-0">
           {/* Generic equation */}
-          <div className="px-4 py-3 rounded-lg border border-primary/30 bg-primary/5 w-full text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
-              Universal Conservation Law
-            </p>
-            <div className="text-lg">
-              <EquationRenderer equation="$\frac{\partial \psi}{\partial t} + \nabla \cdot \mathbf{J} = s$" />
+          <StageHighlight {...hl('conservation')}>
+            <div className="px-4 py-3 rounded-lg border border-primary/30 bg-primary/5 w-full text-center">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
+                Universal Conservation Law
+              </p>
+              <div className="text-lg">
+                <EquationRenderer equation="$\frac{\partial \psi}{\partial t} + \nabla \cdot \mathbf{J} = s$" />
+              </div>
             </div>
-          </div>
+          </StageHighlight>
 
           <TriFlowArrow color={arrowColor} />
 
           {/* Three pillars */}
-          <div className="grid grid-cols-3 gap-3 w-full">
-            <PillarCard
-              label="Conserved Quantity"
-              symbol="ψ"
-              value={selected?.conservedQty.name}
-              unit={selected?.conservedQty.unit}
-              accent="primary"
-            />
-            <PillarCard
-              label="Flux"
-              symbol="J"
-              value={selected?.flux.name}
-              unit={selected?.flux.unit}
-              accent="primary"
-            />
-            <PillarCard
-              label="Source / Sink"
-              symbol="s"
-              value={selected?.source.name}
-              unit={selected?.source.unit}
-              accent="primary"
-            />
-          </div>
+          <StageHighlight {...hl('pillars')}>
+            <div className="grid grid-cols-3 gap-3 w-full">
+              <PillarCard label="Conserved Quantity" symbol="ψ" value={selected?.conservedQty.name} unit={selected?.conservedQty.unit} accent="primary" />
+              <PillarCard label="Flux" symbol="J" value={selected?.flux.name} unit={selected?.flux.unit} accent="primary" />
+              <PillarCard label="Source / Sink" symbol="s" value={selected?.source.name} unit={selected?.source.unit} accent="primary" />
+            </div>
+          </StageHighlight>
 
           <FlowArrow color={arrowColor} label="specialize" delay={0.3} />
 
           {/* Domain-specific equation */}
-          <div
-            className="px-4 py-3 rounded-lg border w-full text-center transition-colors duration-300"
-            style={{
-              borderColor: selected ? selected.hslStroke + '40' : 'hsl(var(--border))',
-              backgroundColor: selected ? selected.hslStroke + '08' : 'transparent',
-            }}
-          >
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
-              {selected ? `${selected.label} Domain` : 'Select a domain'}
-            </p>
-            {selected ? (
-              <div className="text-base">
-                <EquationRenderer equation={`$${selected.specificEq}$`} />
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">Click a domain card below</p>
-            )}
-          </div>
+          <StageHighlight {...hl('domain-eq')}>
+            <div
+              className="px-4 py-3 rounded-lg border w-full text-center transition-colors duration-300"
+              style={{
+                borderColor: selected ? selected.hslStroke + '40' : 'hsl(var(--border))',
+                backgroundColor: selected ? selected.hslStroke + '08' : 'transparent',
+              }}
+            >
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
+                {selected ? `${selected.label} Domain` : 'Select a domain'}
+              </p>
+              {selected ? (
+                <div className="text-base">
+                  <EquationRenderer equation={`$${selected.specificEq}$`} />
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">Click a domain card below</p>
+              )}
+            </div>
+          </StageHighlight>
 
           <FlowArrow color={arrowColor} label="constitutive" delay={0.6} />
 
           {/* Intensity mapping */}
-          <div className="grid grid-cols-2 gap-3 w-full">
-            <div
-              className="px-3 py-2.5 rounded-lg border text-center transition-colors duration-300"
-              style={{
-                borderColor: selected ? selected.hslStroke + '30' : 'hsl(var(--border))',
-                backgroundColor: selected ? selected.hslStroke + '06' : 'transparent',
-              }}
-            >
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Constitutive Law</p>
-              {selected ? (
-                <div className="text-xs">
-                  <EquationRenderer equation={`$${selected.constitutive}$`} />
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">—</p>
-              )}
+          <StageHighlight {...hl('constitutive')}>
+            <div className="grid grid-cols-2 gap-3 w-full">
+              <div
+                className="px-3 py-2.5 rounded-lg border text-center transition-colors duration-300"
+                style={{
+                  borderColor: selected ? selected.hslStroke + '30' : 'hsl(var(--border))',
+                  backgroundColor: selected ? selected.hslStroke + '06' : 'transparent',
+                }}
+              >
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Constitutive Law</p>
+                {selected ? (
+                  <div className="text-xs">
+                    <EquationRenderer equation={`$${selected.constitutive}$`} />
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">—</p>
+                )}
+              </div>
+              <div
+                className="px-3 py-2.5 rounded-lg border text-center transition-colors duration-300"
+                style={{
+                  borderColor: selected ? selected.hslStroke + '30' : 'hsl(var(--border))',
+                  backgroundColor: selected ? selected.hslStroke + '06' : 'transparent',
+                }}
+              >
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Intensity Field</p>
+                {selected ? (
+                  <p className="text-xs font-medium text-foreground">
+                    {selected.intensity.symbol} → {selected.intensity.name}
+                    <span className="text-muted-foreground ml-1">[{selected.intensity.unit}]</span>
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">—</p>
+                )}
+              </div>
             </div>
-            <div
-              className="px-3 py-2.5 rounded-lg border text-center transition-colors duration-300"
-              style={{
-                borderColor: selected ? selected.hslStroke + '30' : 'hsl(var(--border))',
-                backgroundColor: selected ? selected.hslStroke + '06' : 'transparent',
-              }}
-            >
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Intensity Field</p>
-              {selected ? (
-                <p className="text-xs font-medium text-foreground">
-                  {selected.intensity.symbol} → {selected.intensity.name}
-                  <span className="text-muted-foreground ml-1">[{selected.intensity.unit}]</span>
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">—</p>
-              )}
-            </div>
-          </div>
+          </StageHighlight>
 
           <FlowArrow color="hsl(var(--accent))" label="integrate" delay={0.9} />
 
           {/* Moment ladder */}
-          <div className="px-4 py-3 rounded-lg border border-accent/30 bg-accent/5 w-full text-center">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
-              Unified Moment Ladder
-            </p>
-            <div className="text-sm">
-              <EquationRenderer equation="$I_n = \int x^n I(x)\,dx \quad \Rightarrow \quad I_0,\;\bar{x},\;\sigma,\;\gamma_1,\;\kappa$" />
-            </div>
-            {selected && (
-              <p className="text-[11px] text-muted-foreground mt-2 italic">
-                {selected.momentInterpretation}
+          <StageHighlight {...hl('moments')}>
+            <div className="px-4 py-3 rounded-lg border border-accent/30 bg-accent/5 w-full text-center">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
+                Unified Moment Ladder
               </p>
-            )}
-          </div>
+              <div className="text-sm">
+                <EquationRenderer equation="$I_n = \int x^n I(x)\,dx \quad \Rightarrow \quad I_0,\;\bar{x},\;\sigma,\;\gamma_1,\;\kappa$" />
+              </div>
+              {selected && (
+                <p className="text-[11px] text-muted-foreground mt-2 italic">
+                  {selected.momentInterpretation}
+                </p>
+              )}
+            </div>
+          </StageHighlight>
         </div>
       </CardContent>
     </Card>
@@ -444,19 +448,41 @@ export function BalanceLawBackbone() {
   const [selectedDomain, setSelectedDomain] = useState<DomainType>('structures');
   const selected = MAPPINGS.find((m) => m.domain === selectedDomain) ?? null;
 
+  const [walkthroughStep, setWalkthroughStep] = useState(-1); // -1 = inactive
+  const walkthroughActive = walkthroughStep >= 0;
+  const currentStageId = walkthroughActive ? WALKTHROUGH_STEPS[walkthroughStep].stageId : '';
+
+  const startWalkthrough = useCallback(() => setWalkthroughStep(0), []);
+  const exitWalkthrough = useCallback(() => setWalkthroughStep(-1), []);
+  const nextStep = useCallback(() => setWalkthroughStep((s) => Math.min(s + 1, WALKTHROUGH_STEPS.length - 1)), []);
+  const prevStep = useCallback(() => setWalkthroughStep((s) => Math.max(s - 1, 0)), []);
+
   return (
     <div className="space-y-6">
       {/* Title */}
-      <div>
-        <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-          <Zap className="h-5 w-5 text-primary" />
-          Balance-Law Backbone
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Every domain obeys the same conservation equation — click a domain to see how{' '}
-          <span className="font-mono text-primary">∂ψ/∂t + ∇·J = s</span>{' '}
-          specializes and feeds the unified moment ladder.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+            <Zap className="h-5 w-5 text-primary" />
+            Balance-Law Backbone
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Every domain obeys the same conservation equation — click a domain to see how{' '}
+            <span className="font-mono text-primary">∂ψ/∂t + ∇·J = s</span>{' '}
+            specializes and feeds the unified moment ladder.
+          </p>
+        </div>
+        {!walkthroughActive && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0 gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+            onClick={startWalkthrough}
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            Guided Tour
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -478,7 +504,7 @@ export function BalanceLawBackbone() {
         </div>
 
         {/* Backbone diagram */}
-        <div className="lg:col-span-7">
+        <div className="lg:col-span-7 space-y-3">
           <AnimatePresence mode="wait">
             <motion.div
               key={selectedDomain}
@@ -487,9 +513,24 @@ export function BalanceLawBackbone() {
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.25 }}
             >
-              <BackboneDiagram selected={selected} />
+              <BackboneDiagram
+                selected={selected}
+                walkthroughActive={walkthroughActive}
+                walkthroughStageId={currentStageId}
+              />
             </motion.div>
           </AnimatePresence>
+
+          {/* Walkthrough controls */}
+          {walkthroughActive && (
+            <WalkthroughControls
+              step={walkthroughStep}
+              total={WALKTHROUGH_STEPS.length}
+              onPrev={prevStep}
+              onNext={nextStep}
+              onExit={exitWalkthrough}
+            />
+          )}
         </div>
       </div>
     </div>
