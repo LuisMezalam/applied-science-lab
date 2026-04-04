@@ -175,6 +175,17 @@ const Index = () => {
               <CrossDomainComparison />
             </motion.div>
           )}
+          {activeTab === 'balance' && (
+            <motion.div
+              key="balance"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="min-h-[600px]"
+            >
+              <BalanceLawBackbone />
+            </motion.div>
+          )}
           {activeTab === 'dictionary' && (
             <motion.div
               key="dictionary"
