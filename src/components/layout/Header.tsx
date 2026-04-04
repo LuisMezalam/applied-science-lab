@@ -10,7 +10,7 @@ import {
   ArrowLeftRight
 } from 'lucide-react';
 
-export type ActiveTab = 'simulator' | 'surface2d' | 'volume3d' | 'comparison' | 'dictionary' | 'library';
+export type ActiveTab = 'simulator' | 'surface2d' | 'volume3d' | 'comparison' | 'balance' | 'dictionary' | 'library';
 
 interface HeaderProps {
   activeTab: ActiveTab;
