@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { WalkthroughControls, StageHighlight, WALKTHROUGH_STEPS } from './backbone/WalkthroughOverlay';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EquationRenderer } from '@/components/knowledge/EquationRenderer';
