@@ -7,7 +7,8 @@ import {
   Square,
   Box,
   TableProperties,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Zap,
 } from 'lucide-react';
 
 export type ActiveTab = 'simulator' | 'surface2d' | 'volume3d' | 'comparison' | 'balance' | 'dictionary' | 'library';
