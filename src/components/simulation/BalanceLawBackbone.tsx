@@ -127,9 +127,103 @@ const MAPPINGS: BalanceLawMapping[] = [
   },
 ];
 
+/* ── Animated flow arrow ── */
+
+function FlowArrow({
+  color,
+  label,
+  delay = 0,
+}: {
+  color: string;
+  label?: string;
+  delay?: number;
+}) {
+  return (
+    <div className="relative flex flex-col items-center w-full py-1">
+      <svg width="40" height="28" viewBox="0 0 40 28" className="overflow-visible">
+        {/* Track line */}
+        <line x1="20" y1="0" x2="20" y2="28" stroke={color} strokeWidth="1.5" strokeOpacity="0.25" />
+        {/* Arrowhead */}
+        <polygon points="14,20 20,28 26,20" fill={color} fillOpacity="0.5" />
+        {/* Pulsing particle */}
+        <motion.circle
+          cx="20"
+          r="3"
+          fill={color}
+          initial={{ cy: 0, opacity: 0.9 }}
+          animate={{ cy: 24, opacity: [0.9, 1, 0.4] }}
+          transition={{
+            duration: 1.4,
+            repeat: Infinity,
+            ease: 'easeInOut',
+            delay,
+          }}
+        />
+        {/* Glow */}
+        <motion.circle
+          cx="20"
+          r="6"
+          fill={color}
+          initial={{ cy: 0, opacity: 0 }}
+          animate={{ cy: 24, opacity: [0, 0.25, 0] }}
+          transition={{
+            duration: 1.4,
+            repeat: Infinity,
+            ease: 'easeInOut',
+            delay,
+          }}
+        />
+      </svg>
+      {label && (
+        <span
+          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full ml-2 text-[9px] font-mono tracking-wider uppercase"
+          style={{ color, paddingLeft: 6 }}
+        >
+          {label}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/* ── Tri-flow: three parallel arrows for ψ, J, s ── */
+
+function TriFlowArrow({ color }: { color: string }) {
+  return (
+    <div className="flex items-center justify-center gap-10 w-full py-1">
+      {['ψ', 'J', 's'].map((sym, i) => (
+        <div key={sym} className="relative flex flex-col items-center">
+          <svg width="24" height="24" viewBox="0 0 24 24" className="overflow-visible">
+            <line x1="12" y1="0" x2="12" y2="24" stroke={color} strokeWidth="1" strokeOpacity="0.2" />
+            <polygon points="8,17 12,24 16,17" fill={color} fillOpacity="0.4" />
+            <motion.circle
+              cx="12"
+              r="2.5"
+              fill={color}
+              initial={{ cy: 0, opacity: 0.8 }}
+              animate={{ cy: 20, opacity: [0.8, 1, 0.3] }}
+              transition={{
+                duration: 1.2,
+                repeat: Infinity,
+                ease: 'easeInOut',
+                delay: i * 0.2,
+              }}
+            />
+          </svg>
+          <span className="text-[9px] font-mono mt-0.5" style={{ color }}>
+            {sym}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ── Backbone diagram ── */
 
 function BackboneDiagram({ selected }: { selected: BalanceLawMapping | null }) {
+  const arrowColor = selected ? selected.hslStroke : 'hsl(var(--primary))';
+
   return (
     <Card className="border-border/50 bg-card/80 backdrop-blur-sm">
       <CardHeader className="pb-3">
@@ -139,7 +233,7 @@ function BackboneDiagram({ selected }: { selected: BalanceLawMapping | null }) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-center gap-0">
           {/* Generic equation */}
           <div className="px-4 py-3 rounded-lg border border-primary/30 bg-primary/5 w-full text-center">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
@@ -150,7 +244,7 @@ function BackboneDiagram({ selected }: { selected: BalanceLawMapping | null }) {
             </div>
           </div>
 
-          <ArrowDown className="h-5 w-5 text-muted-foreground" />
+          <TriFlowArrow color={arrowColor} />
 
           {/* Three pillars */}
           <div className="grid grid-cols-3 gap-3 w-full">
@@ -177,7 +271,7 @@ function BackboneDiagram({ selected }: { selected: BalanceLawMapping | null }) {
             />
           </div>
 
-          <ArrowDown className="h-5 w-5 text-muted-foreground" />
+          <FlowArrow color={arrowColor} label="specialize" delay={0.3} />
 
           {/* Domain-specific equation */}
           <div
@@ -199,7 +293,7 @@ function BackboneDiagram({ selected }: { selected: BalanceLawMapping | null }) {
             )}
           </div>
 
-          <ArrowDown className="h-5 w-5 text-muted-foreground" />
+          <FlowArrow color={arrowColor} label="constitutive" delay={0.6} />
 
           {/* Intensity mapping */}
           <div className="grid grid-cols-2 gap-3 w-full">
@@ -238,7 +332,7 @@ function BackboneDiagram({ selected }: { selected: BalanceLawMapping | null }) {
             </div>
           </div>
 
-          <ArrowDown className="h-5 w-5 text-muted-foreground" />
+          <FlowArrow color="hsl(var(--accent))" label="integrate" delay={0.9} />
 
           {/* Moment ladder */}
           <div className="px-4 py-3 rounded-lg border border-accent/30 bg-accent/5 w-full text-center">
