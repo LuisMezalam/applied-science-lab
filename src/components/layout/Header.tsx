@@ -7,10 +7,11 @@ import {
   Square,
   Box,
   TableProperties,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Zap,
 } from 'lucide-react';
 
-export type ActiveTab = 'simulator' | 'surface2d' | 'volume3d' | 'comparison' | 'dictionary' | 'library';
+export type ActiveTab = 'simulator' | 'surface2d' | 'volume3d' | 'comparison' | 'balance' | 'dictionary' | 'library';
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -83,6 +84,16 @@ export function Header({ activeTab, onTabChange }: HeaderProps) {
               <span className="hidden sm:inline">Compare</span>
             </Button>
             <Button
+              variant={activeTab === 'balance' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => onTabChange('balance')}
+              className="gap-2"
+            >
+              <Zap className="h-4 w-4" />
+              <span className="hidden sm:inline">Balance</span>
+            </Button>
+            <Button
+              variant={activeTab === 'dictionary' ? 'secondary' : 'ghost'}
               size="sm"
               onClick={() => onTabChange('dictionary')}
               className="gap-2"

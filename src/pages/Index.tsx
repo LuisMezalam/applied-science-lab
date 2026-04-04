@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Header, ActiveTab } from '@/components/layout/Header';
 import { MomentSimulator } from '@/components/simulation/MomentSimulator';
 import { CrossDomainComparison } from '@/components/simulation/CrossDomainComparison';
+import { BalanceLawBackbone } from '@/components/simulation/BalanceLawBackbone';
 import { Surface2DSimulator } from '@/components/simulation/Surface2DSimulator';
 import { Volume3DSimulator } from '@/components/simulation/Volume3DSimulator';
 import { KnowledgeLibrary } from '@/components/knowledge/KnowledgeLibrary';
@@ -172,6 +173,17 @@ const Index = () => {
               className="min-h-[600px]"
             >
               <CrossDomainComparison />
+            </motion.div>
+          )}
+          {activeTab === 'balance' && (
+            <motion.div
+              key="balance"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="min-h-[600px]"
+            >
+              <BalanceLawBackbone />
             </motion.div>
           )}
           {activeTab === 'dictionary' && (
