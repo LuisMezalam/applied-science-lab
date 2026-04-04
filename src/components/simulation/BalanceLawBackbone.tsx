@@ -447,19 +447,41 @@ export function BalanceLawBackbone() {
   const [selectedDomain, setSelectedDomain] = useState<DomainType>('structures');
   const selected = MAPPINGS.find((m) => m.domain === selectedDomain) ?? null;
 
+  const [walkthroughStep, setWalkthroughStep] = useState(-1); // -1 = inactive
+  const walkthroughActive = walkthroughStep >= 0;
+  const currentStageId = walkthroughActive ? WALKTHROUGH_STEPS[walkthroughStep].stageId : '';
+
+  const startWalkthrough = useCallback(() => setWalkthroughStep(0), []);
+  const exitWalkthrough = useCallback(() => setWalkthroughStep(-1), []);
+  const nextStep = useCallback(() => setWalkthroughStep((s) => Math.min(s + 1, WALKTHROUGH_STEPS.length - 1)), []);
+  const prevStep = useCallback(() => setWalkthroughStep((s) => Math.max(s - 1, 0)), []);
+
   return (
     <div className="space-y-6">
       {/* Title */}
-      <div>
-        <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-          <Zap className="h-5 w-5 text-primary" />
-          Balance-Law Backbone
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Every domain obeys the same conservation equation — click a domain to see how{' '}
-          <span className="font-mono text-primary">∂ψ/∂t + ∇·J = s</span>{' '}
-          specializes and feeds the unified moment ladder.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+            <Zap className="h-5 w-5 text-primary" />
+            Balance-Law Backbone
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Every domain obeys the same conservation equation — click a domain to see how{' '}
+            <span className="font-mono text-primary">∂ψ/∂t + ∇·J = s</span>{' '}
+            specializes and feeds the unified moment ladder.
+          </p>
+        </div>
+        {!walkthroughActive && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0 gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+            onClick={startWalkthrough}
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            Guided Tour
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -481,7 +503,7 @@ export function BalanceLawBackbone() {
         </div>
 
         {/* Backbone diagram */}
-        <div className="lg:col-span-7">
+        <div className="lg:col-span-7 space-y-3">
           <AnimatePresence mode="wait">
             <motion.div
               key={selectedDomain}
@@ -490,9 +512,24 @@ export function BalanceLawBackbone() {
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.25 }}
             >
-              <BackboneDiagram selected={selected} />
+              <BackboneDiagram
+                selected={selected}
+                walkthroughActive={walkthroughActive}
+                walkthroughStageId={currentStageId}
+              />
             </motion.div>
           </AnimatePresence>
+
+          {/* Walkthrough controls */}
+          {walkthroughActive && (
+            <WalkthroughControls
+              step={walkthroughStep}
+              total={WALKTHROUGH_STEPS.length}
+              onPrev={prevStep}
+              onNext={nextStep}
+              onExit={exitWalkthrough}
+            />
+          )}
         </div>
       </div>
     </div>
