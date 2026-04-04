@@ -242,16 +242,6 @@ function FeatureCard({
       </div>
     </div>
   );
-          )}
-          {activeTab === 'balance' && (
-            <motion.div
-              key="balance"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="min-h-[600px]"
-            >
-              <BalanceLawBackbone />
-            </motion.div>
+}
 
 export default Index;
