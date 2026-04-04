@@ -9,6 +9,7 @@ import {
   ArrowRight,
   ArrowDown,
   Layers,
+  BookOpen,
   Zap,
   Flame,
   Droplets,
