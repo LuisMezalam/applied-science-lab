@@ -430,11 +430,11 @@ function DomainCard({
             )}
           </div>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            <span className="font-mono">{mapping.conservedQty.symbol}</span> = {mapping.conservedQty.name}
+            <EquationRenderer equation={`$${mapping.conservedQty.symbol}$`} /> = {mapping.conservedQty.name}
           </p>
           <div className="flex items-center gap-1 mt-1.5 text-[10px] text-muted-foreground">
             <ArrowRight className="h-3 w-3" />
-            <span className="font-mono">{mapping.intensity.symbol}</span> = {mapping.intensity.name}
+            <EquationRenderer equation={`$${mapping.intensity.symbol}$`} /> = {mapping.intensity.name}
           </div>
         </div>
       </div>
