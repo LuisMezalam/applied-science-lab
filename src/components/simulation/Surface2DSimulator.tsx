@@ -74,6 +74,7 @@ const domain2DMappings: Record<DomainType, Domain2DMapping> = {
     dictRef: 'M-003',
     intensityName: 'Surface Heat Flux',
     intensitySymbol: 'q″(x,y)',
+    intensitySymbolTex: "q''(x,y)",
     intensityUnit: 'W/m²',
     resultantName: 'Total Heat Flow',
     resultantUnit: 'W',
