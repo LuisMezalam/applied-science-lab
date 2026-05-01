@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Box, Cylinder, AlertTriangle, Info } from 'lucide-react';
+import { Box, Cylinder, AlertTriangle, Info, Building2, Flame, Droplets, Activity, Zap, Rocket } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -28,6 +28,139 @@ import {
 import { InverseMomentComparison } from './InverseMomentComparison';
 import { formatValue } from '@/lib/physics/momentCalculus';
 import { EquationRenderer } from '@/components/knowledge/EquationRenderer';
+import { DomainType } from '@/types/physics';
+
+// ─── Domain-specific mapping for 3D volumes ─────────────────────────
+// Matches dictionary entries: M-004 (volumetric heat source) and M-017 (body force)
+interface Domain3DMapping {
+  label: string;
+  icon: typeof Building2;
+  colorClass: string;
+  badgeColor: string;
+  dictRef: string;
+  intensityName: string;
+  intensitySymbol: string;       // plain-text fallback
+  intensitySymbolTex: string;    // KaTeX
+  intensityUnit: string;
+  resultantName: string;
+  resultantUnit: string;
+  centroidName: string;
+  secondMomentName: string;
+  secondMomentUnit: string;
+  effectiveRadiusInterpretation: string;
+  interpretation: string;
+}
+
+const domain3DMappings: Record<DomainType, Domain3DMapping> = {
+  structures: {
+    label: 'Structures',
+    icon: Building2,
+    colorClass: 'text-structures',
+    badgeColor: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
+    dictRef: 'M-017',
+    intensityName: 'Body Force Density',
+    intensitySymbol: 'b(x,y,z)',
+    intensitySymbolTex: '\\mathbf{b}(x,y,z)',
+    intensityUnit: 'kN/m³',
+    resultantName: 'Total Body Force',
+    resultantUnit: 'kN',
+    centroidName: 'Center of Force',
+    secondMomentName: 'Second Moment of Force',
+    secondMomentUnit: 'kN·m²',
+    effectiveRadiusInterpretation: 'Localization radius of body-force concentration',
+    interpretation: 'Volumetric body force density b(x,y,z) — gravity, inertia, or distributed load on a 3D solid. The resultant is the total force, the centroid is its line of action.',
+  },
+  heat: {
+    label: 'Heat Transfer',
+    icon: Flame,
+    colorClass: 'text-heat',
+    badgeColor: 'bg-orange-500/10 text-orange-600 border-orange-500/30',
+    dictRef: 'M-004',
+    intensityName: 'Volumetric Heat Source',
+    intensitySymbol: "q'''(x,y,z)",
+    intensitySymbolTex: "q'''(x,y,z)",
+    intensityUnit: 'W/m³',
+    resultantName: 'Total Heat Generation',
+    resultantUnit: 'W',
+    centroidName: 'Thermal Center',
+    secondMomentName: 'Second Moment of Heat',
+    secondMomentUnit: 'W·m²',
+    effectiveRadiusInterpretation: 'Effective radius of internal hot-spot',
+    interpretation: 'Volumetric heat generation q‴(x,y,z) — Joule heating, nuclear sources, or chemical reactions. Resultant is total heat rate, inverse moments quantify hot-spot localization.',
+  },
+  fluids: {
+    label: 'Fluids',
+    icon: Droplets,
+    colorClass: 'text-fluids',
+    badgeColor: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/30',
+    dictRef: 'M-017',
+    intensityName: 'Buoyancy Force Density',
+    intensitySymbol: 'f_b(x,y,z)',
+    intensitySymbolTex: '\\mathbf{f}_b(x,y,z)',
+    intensityUnit: 'kN/m³',
+    resultantName: 'Net Buoyancy',
+    resultantUnit: 'kN',
+    centroidName: 'Center of Buoyancy',
+    secondMomentName: 'Second Moment of Buoyancy',
+    secondMomentUnit: 'kN·m²',
+    effectiveRadiusInterpretation: 'Effective radius of buoyancy distribution',
+    interpretation: 'Volumetric buoyancy force in a submerged body. The centroid locates the center of buoyancy, critical for ship and submarine stability.',
+  },
+  dynamics: {
+    label: 'Dynamics',
+    icon: Activity,
+    colorClass: 'text-primary',
+    badgeColor: 'bg-purple-500/10 text-purple-600 border-purple-500/30',
+    dictRef: 'M-014',
+    intensityName: 'Mass Density',
+    intensitySymbol: 'ρ(x,y,z)',
+    intensitySymbolTex: '\\rho(x,y,z)',
+    intensityUnit: 'kg/m³',
+    resultantName: 'Total Mass',
+    resultantUnit: 'kg',
+    centroidName: 'Center of Mass',
+    secondMomentName: 'Mass Moment of Inertia',
+    secondMomentUnit: 'kg·m²',
+    effectiveRadiusInterpretation: 'Radius of gyration for rotational inertia',
+    interpretation: 'Volumetric mass density ρ(x,y,z) of a 3D solid. Second moments give the full inertia tensor — essential for rigid-body rotational dynamics.',
+  },
+  circuits: {
+    label: 'Circuits',
+    icon: Zap,
+    colorClass: 'text-warning',
+    badgeColor: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30',
+    dictRef: 'M-016',
+    intensityName: 'Current Density',
+    intensitySymbol: 'J(x,y,z)',
+    intensitySymbolTex: '\\mathbf{J}(x,y,z)',
+    intensityUnit: 'A/m³',
+    resultantName: 'Total Current Source',
+    resultantUnit: 'A',
+    centroidName: 'Current Center',
+    secondMomentName: 'Second Moment of Current',
+    secondMomentUnit: 'A·m²',
+    effectiveRadiusInterpretation: 'Effective radius of volumetric current concentration',
+    interpretation: 'Volumetric current density in a 3D conductor. Inverse moments quantify current crowding analogous to skin/proximity effects.',
+  },
+  propulsion: {
+    label: 'Propulsion',
+    icon: Rocket,
+    colorClass: 'text-success',
+    badgeColor: 'bg-green-500/10 text-green-600 border-green-500/30',
+    dictRef: 'M-018',
+    intensityName: 'Thrust Density',
+    intensitySymbol: 'f_T(x,y,z)',
+    intensitySymbolTex: '\\mathbf{f}_T(x,y,z)',
+    intensityUnit: 'kN/m³',
+    resultantName: 'Total Thrust',
+    resultantUnit: 'kN',
+    centroidName: 'Thrust Center',
+    secondMomentName: 'Second Moment of Thrust',
+    secondMomentUnit: 'kN·m²',
+    effectiveRadiusInterpretation: 'Effective radius of thrust localization',
+    interpretation: 'Volumetric thrust density across a combustion chamber or nozzle. Anisotropy in principal moments indicates thrust-vectoring asymmetry.',
+  },
+};
 
 const shapeOptions: { value: Shape3D; label: string; icon: React.ReactNode }[] = [
   { value: 'box', label: 'Box', icon: <Box className="h-4 w-4" /> },
@@ -268,6 +401,9 @@ export function Volume3DSimulator() {
   const [epsilonPercent, setEpsilonPercent] = useState(5); // % of characteristic length
   const [showEllipsoid, setShowEllipsoid] = useState(true);
   const [showNegativeMoments, setShowNegativeMoments] = useState(true);
+  const [activeDomain, setActiveDomain] = useState<DomainType>('structures');
+  const dm = domain3DMappings[activeDomain];
+  const DomainIcon = dm.icon;
 
   // Get characteristic length for ε scaling
   const characteristicLength = useMemo(() => {
@@ -305,15 +441,51 @@ export function Volume3DSimulator() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-foreground">3D Volumetric Loading</h2>
+          <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+            <DomainIcon className={`h-5 w-5 ${dm.colorClass}`} />
+            3D Volume — {dm.intensityName}
+          </h2>
           <p className="text-sm text-muted-foreground">
-            <EquationRenderer equation={`Triple integrals over volumes: $\\iiint_V I(x,y,z)\\, dV$`} />
+            <EquationRenderer
+              equation={`$${dm.intensitySymbolTex}$ over $V$ → $\\iiint_V ${dm.intensitySymbolTex}\\, dV$`}
+            />
+            {' '}· Dict ref: {dm.dictRef}
           </p>
         </div>
-        <Badge variant="outline" className="bg-fluids/10 text-fluids border-fluids/30">
-          3D Moments
+        <Badge variant="outline" className={dm.badgeColor}>
+          {dm.label}
         </Badge>
       </div>
+
+      {/* Domain Selector */}
+      <Card className="border-border/50 bg-card/60 backdrop-blur">
+        <CardContent className="pt-4 pb-3">
+          <Label className="text-xs text-muted-foreground uppercase tracking-wide mb-2 block">
+            Engineering Domain
+          </Label>
+          <Tabs value={activeDomain} onValueChange={(v) => setActiveDomain(v as DomainType)}>
+            <TabsList className="grid grid-cols-3 md:grid-cols-6 gap-1 h-auto p-1 w-full">
+              {(Object.keys(domain3DMappings) as DomainType[]).map((domain) => {
+                const m = domain3DMappings[domain];
+                const Icon = m.icon;
+                return (
+                  <TabsTrigger
+                    key={domain}
+                    value={domain}
+                    className="flex flex-col items-center gap-1 py-2 px-1 h-auto text-xs"
+                  >
+                    <Icon className={`h-4 w-4 ${m.colorClass}`} />
+                    <span>{m.label}</span>
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </Tabs>
+          <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
+            {dm.interpretation}
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Controls */}
