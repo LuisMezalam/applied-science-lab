@@ -27,6 +27,7 @@ import {
 } from '@/lib/physics/moment3D';
 import { InverseMomentComparison } from './InverseMomentComparison';
 import { formatValue } from '@/lib/physics/momentCalculus';
+import { EquationRenderer } from '@/components/knowledge/EquationRenderer';
 
 const shapeOptions: { value: Shape3D; label: string; icon: React.ReactNode }[] = [
   { value: 'box', label: 'Box', icon: <Box className="h-4 w-4" /> },
