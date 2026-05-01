@@ -114,6 +114,7 @@ const domain2DMappings: Record<DomainType, Domain2DMapping> = {
     dictRef: 'M-014',
     intensityName: 'Mass Density',
     intensitySymbol: 'ρ_s(x,y)',
+    intensitySymbolTex: '\\rho_s(x,y)',
     intensityUnit: 'kg/m²',
     resultantName: 'Total Mass',
     resultantUnit: 'kg',
