@@ -264,7 +264,7 @@ export function Surface2DSimulator() {
             2D Surface — {dm.intensityName}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {dm.intensitySymbol} over Ω → ∬_Ω {dm.intensitySymbol} dA · Dict ref: {dm.dictRef}
+            <EquationRenderer equation={`$${dm.intensitySymbolTex}$ over $\\Omega$ → $\\iint_\\Omega ${dm.intensitySymbolTex}\\, dA$`} /> · Dict ref: {dm.dictRef}
           </p>
         </div>
         <Badge variant="outline" className={dm.badgeColor}>
