@@ -94,6 +94,7 @@ const domain2DMappings: Record<DomainType, Domain2DMapping> = {
     dictRef: 'M-005',
     intensityName: 'Hydrostatic Pressure',
     intensitySymbol: 'p(x,y)',
+    intensitySymbolTex: 'p(x,y)',
     intensityUnit: 'kPa',
     resultantName: 'Resultant Force',
     resultantUnit: 'kN',
