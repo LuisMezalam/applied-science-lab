@@ -19,6 +19,7 @@ import {
 } from '@/lib/physics/moment2D';
 import { formatValue } from '@/lib/physics/momentCalculus';
 import { DomainType } from '@/types/physics';
+import { EquationRenderer } from '@/components/knowledge/EquationRenderer';
 
 // ─── Domain-specific mapping for 2D surfaces ─────────────────────────
 // Matches dictionary entries: M-002, M-003, M-005, M-014, M-015, M-016, M-018
