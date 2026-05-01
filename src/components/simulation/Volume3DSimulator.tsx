@@ -307,7 +307,7 @@ export function Volume3DSimulator() {
         <div>
           <h2 className="text-xl font-semibold text-foreground">3D Volumetric Loading</h2>
           <p className="text-sm text-muted-foreground">
-            Triple integrals over volumes: ∭_V I(x,y,z) dV
+            <EquationRenderer equation={`Triple integrals over volumes: $\\iiint_V I(x,y,z)\\, dV$`} />
           </p>
         </div>
         <Badge variant="outline" className="bg-fluids/10 text-fluids border-fluids/30">
