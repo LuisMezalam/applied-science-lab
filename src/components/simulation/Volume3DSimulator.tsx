@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Box, Cylinder, AlertTriangle, Info } from 'lucide-react';
+import { Box, Cylinder, AlertTriangle, Info, Building2, Flame, Droplets, Activity, Zap, Rocket } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
