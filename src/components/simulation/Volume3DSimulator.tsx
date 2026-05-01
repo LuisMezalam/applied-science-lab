@@ -441,15 +441,51 @@ export function Volume3DSimulator() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-foreground">3D Volumetric Loading</h2>
+          <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+            <DomainIcon className={`h-5 w-5 ${dm.colorClass}`} />
+            3D Volume — {dm.intensityName}
+          </h2>
           <p className="text-sm text-muted-foreground">
-            <EquationRenderer equation={`Triple integrals over volumes: $\\iiint_V I(x,y,z)\\, dV$`} />
+            <EquationRenderer
+              equation={`$${dm.intensitySymbolTex}$ over $V$ → $\\iiint_V ${dm.intensitySymbolTex}\\, dV$`}
+            />
+            {' '}· Dict ref: {dm.dictRef}
           </p>
         </div>
-        <Badge variant="outline" className="bg-fluids/10 text-fluids border-fluids/30">
-          3D Moments
+        <Badge variant="outline" className={dm.badgeColor}>
+          {dm.label}
         </Badge>
       </div>
+
+      {/* Domain Selector */}
+      <Card className="border-border/50 bg-card/60 backdrop-blur">
+        <CardContent className="pt-4 pb-3">
+          <Label className="text-xs text-muted-foreground uppercase tracking-wide mb-2 block">
+            Engineering Domain
+          </Label>
+          <Tabs value={activeDomain} onValueChange={(v) => setActiveDomain(v as DomainType)}>
+            <TabsList className="grid grid-cols-3 md:grid-cols-6 gap-1 h-auto p-1 w-full">
+              {(Object.keys(domain3DMappings) as DomainType[]).map((domain) => {
+                const m = domain3DMappings[domain];
+                const Icon = m.icon;
+                return (
+                  <TabsTrigger
+                    key={domain}
+                    value={domain}
+                    className="flex flex-col items-center gap-1 py-2 px-1 h-auto text-xs"
+                  >
+                    <Icon className={`h-4 w-4 ${m.colorClass}`} />
+                    <span>{m.label}</span>
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </Tabs>
+          <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
+            {dm.interpretation}
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Controls */}
