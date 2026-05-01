@@ -401,6 +401,9 @@ export function Volume3DSimulator() {
   const [epsilonPercent, setEpsilonPercent] = useState(5); // % of characteristic length
   const [showEllipsoid, setShowEllipsoid] = useState(true);
   const [showNegativeMoments, setShowNegativeMoments] = useState(true);
+  const [activeDomain, setActiveDomain] = useState<DomainType>('structures');
+  const dm = domain3DMappings[activeDomain];
+  const DomainIcon = dm.icon;
 
   // Get characteristic length for ε scaling
   const characteristicLength = useMemo(() => {
