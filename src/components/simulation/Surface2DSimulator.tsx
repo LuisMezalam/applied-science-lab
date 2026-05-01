@@ -31,7 +31,8 @@ interface Domain2DMapping {
   badgeColor: string;
   dictRef: string;
   intensityName: string;         // What I(x,y) represents
-  intensitySymbol: string;       // Symbol for I(x,y)
+  intensitySymbol: string;       // Symbol for I(x,y) (plain text fallback)
+  intensitySymbolTex: string;    // KaTeX-formatted symbol for I(x,y)
   intensityUnit: string;         // Unit of the surface intensity
   resultantName: string;         // What I₀ = ∬I dA represents
   resultantUnit: string;
