@@ -134,6 +134,7 @@ const domain2DMappings: Record<DomainType, Domain2DMapping> = {
     dictRef: 'M-016',
     intensityName: 'Current Density',
     intensitySymbol: 'J(x,y)',
+    intensitySymbolTex: 'J(x,y)',
     intensityUnit: 'A/m²',
     resultantName: 'Total Current',
     resultantUnit: 'A',
