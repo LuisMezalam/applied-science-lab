@@ -28,6 +28,139 @@ import {
 import { InverseMomentComparison } from './InverseMomentComparison';
 import { formatValue } from '@/lib/physics/momentCalculus';
 import { EquationRenderer } from '@/components/knowledge/EquationRenderer';
+import { DomainType } from '@/types/physics';
+
+// ─── Domain-specific mapping for 3D volumes ─────────────────────────
+// Matches dictionary entries: M-004 (volumetric heat source) and M-017 (body force)
+interface Domain3DMapping {
+  label: string;
+  icon: typeof Building2;
+  colorClass: string;
+  badgeColor: string;
+  dictRef: string;
+  intensityName: string;
+  intensitySymbol: string;       // plain-text fallback
+  intensitySymbolTex: string;    // KaTeX
+  intensityUnit: string;
+  resultantName: string;
+  resultantUnit: string;
+  centroidName: string;
+  secondMomentName: string;
+  secondMomentUnit: string;
+  effectiveRadiusInterpretation: string;
+  interpretation: string;
+}
+
+const domain3DMappings: Record<DomainType, Domain3DMapping> = {
+  structures: {
+    label: 'Structures',
+    icon: Building2,
+    colorClass: 'text-structures',
+    badgeColor: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
+    dictRef: 'M-017',
+    intensityName: 'Body Force Density',
+    intensitySymbol: 'b(x,y,z)',
+    intensitySymbolTex: '\\mathbf{b}(x,y,z)',
+    intensityUnit: 'kN/m³',
+    resultantName: 'Total Body Force',
+    resultantUnit: 'kN',
+    centroidName: 'Center of Force',
+    secondMomentName: 'Second Moment of Force',
+    secondMomentUnit: 'kN·m²',
+    effectiveRadiusInterpretation: 'Localization radius of body-force concentration',
+    interpretation: 'Volumetric body force density b(x,y,z) — gravity, inertia, or distributed load on a 3D solid. The resultant is the total force, the centroid is its line of action.',
+  },
+  heat: {
+    label: 'Heat Transfer',
+    icon: Flame,
+    colorClass: 'text-heat',
+    badgeColor: 'bg-orange-500/10 text-orange-600 border-orange-500/30',
+    dictRef: 'M-004',
+    intensityName: 'Volumetric Heat Source',
+    intensitySymbol: "q'''(x,y,z)",
+    intensitySymbolTex: "q'''(x,y,z)",
+    intensityUnit: 'W/m³',
+    resultantName: 'Total Heat Generation',
+    resultantUnit: 'W',
+    centroidName: 'Thermal Center',
+    secondMomentName: 'Second Moment of Heat',
+    secondMomentUnit: 'W·m²',
+    effectiveRadiusInterpretation: 'Effective radius of internal hot-spot',
+    interpretation: 'Volumetric heat generation q‴(x,y,z) — Joule heating, nuclear sources, or chemical reactions. Resultant is total heat rate, inverse moments quantify hot-spot localization.',
+  },
+  fluids: {
+    label: 'Fluids',
+    icon: Droplets,
+    colorClass: 'text-fluids',
+    badgeColor: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/30',
+    dictRef: 'M-017',
+    intensityName: 'Buoyancy Force Density',
+    intensitySymbol: 'f_b(x,y,z)',
+    intensitySymbolTex: '\\mathbf{f}_b(x,y,z)',
+    intensityUnit: 'kN/m³',
+    resultantName: 'Net Buoyancy',
+    resultantUnit: 'kN',
+    centroidName: 'Center of Buoyancy',
+    secondMomentName: 'Second Moment of Buoyancy',
+    secondMomentUnit: 'kN·m²',
+    effectiveRadiusInterpretation: 'Effective radius of buoyancy distribution',
+    interpretation: 'Volumetric buoyancy force in a submerged body. The centroid locates the center of buoyancy, critical for ship and submarine stability.',
+  },
+  dynamics: {
+    label: 'Dynamics',
+    icon: Activity,
+    colorClass: 'text-primary',
+    badgeColor: 'bg-purple-500/10 text-purple-600 border-purple-500/30',
+    dictRef: 'M-014',
+    intensityName: 'Mass Density',
+    intensitySymbol: 'ρ(x,y,z)',
+    intensitySymbolTex: '\\rho(x,y,z)',
+    intensityUnit: 'kg/m³',
+    resultantName: 'Total Mass',
+    resultantUnit: 'kg',
+    centroidName: 'Center of Mass',
+    secondMomentName: 'Mass Moment of Inertia',
+    secondMomentUnit: 'kg·m²',
+    effectiveRadiusInterpretation: 'Radius of gyration for rotational inertia',
+    interpretation: 'Volumetric mass density ρ(x,y,z) of a 3D solid. Second moments give the full inertia tensor — essential for rigid-body rotational dynamics.',
+  },
+  circuits: {
+    label: 'Circuits',
+    icon: Zap,
+    colorClass: 'text-warning',
+    badgeColor: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30',
+    dictRef: 'M-016',
+    intensityName: 'Current Density',
+    intensitySymbol: 'J(x,y,z)',
+    intensitySymbolTex: '\\mathbf{J}(x,y,z)',
+    intensityUnit: 'A/m³',
+    resultantName: 'Total Current Source',
+    resultantUnit: 'A',
+    centroidName: 'Current Center',
+    secondMomentName: 'Second Moment of Current',
+    secondMomentUnit: 'A·m²',
+    effectiveRadiusInterpretation: 'Effective radius of volumetric current concentration',
+    interpretation: 'Volumetric current density in a 3D conductor. Inverse moments quantify current crowding analogous to skin/proximity effects.',
+  },
+  propulsion: {
+    label: 'Propulsion',
+    icon: Rocket,
+    colorClass: 'text-success',
+    badgeColor: 'bg-green-500/10 text-green-600 border-green-500/30',
+    dictRef: 'M-018',
+    intensityName: 'Thrust Density',
+    intensitySymbol: 'f_T(x,y,z)',
+    intensitySymbolTex: '\\mathbf{f}_T(x,y,z)',
+    intensityUnit: 'kN/m³',
+    resultantName: 'Total Thrust',
+    resultantUnit: 'kN',
+    centroidName: 'Thrust Center',
+    secondMomentName: 'Second Moment of Thrust',
+    secondMomentUnit: 'kN·m²',
+    effectiveRadiusInterpretation: 'Effective radius of thrust localization',
+    interpretation: 'Volumetric thrust density across a combustion chamber or nozzle. Anisotropy in principal moments indicates thrust-vectoring asymmetry.',
+  },
+};
 
 const shapeOptions: { value: Shape3D; label: string; icon: React.ReactNode }[] = [
   { value: 'box', label: 'Box', icon: <Box className="h-4 w-4" /> },
