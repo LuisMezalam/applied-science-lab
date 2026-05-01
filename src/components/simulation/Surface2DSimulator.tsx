@@ -19,6 +19,7 @@ import {
 } from '@/lib/physics/moment2D';
 import { formatValue } from '@/lib/physics/momentCalculus';
 import { DomainType } from '@/types/physics';
+import { EquationRenderer } from '@/components/knowledge/EquationRenderer';
 
 // ─── Domain-specific mapping for 2D surfaces ─────────────────────────
 // Matches dictionary entries: M-002, M-003, M-005, M-014, M-015, M-016, M-018
@@ -30,7 +31,8 @@ interface Domain2DMapping {
   badgeColor: string;
   dictRef: string;
   intensityName: string;         // What I(x,y) represents
-  intensitySymbol: string;       // Symbol for I(x,y)
+  intensitySymbol: string;       // Symbol for I(x,y) (plain text fallback)
+  intensitySymbolTex: string;    // KaTeX-formatted symbol for I(x,y)
   intensityUnit: string;         // Unit of the surface intensity
   resultantName: string;         // What I₀ = ∬I dA represents
   resultantUnit: string;
@@ -52,6 +54,7 @@ const domain2DMappings: Record<DomainType, Domain2DMapping> = {
     dictRef: 'M-002',
     intensityName: 'Surface Pressure',
     intensitySymbol: 'p(x,y)',
+    intensitySymbolTex: 'p(x,y)',
     intensityUnit: 'kPa',
     resultantName: 'Total Force',
     resultantUnit: 'kN',
@@ -71,6 +74,7 @@ const domain2DMappings: Record<DomainType, Domain2DMapping> = {
     dictRef: 'M-003',
     intensityName: 'Surface Heat Flux',
     intensitySymbol: 'q″(x,y)',
+    intensitySymbolTex: "q''(x,y)",
     intensityUnit: 'W/m²',
     resultantName: 'Total Heat Flow',
     resultantUnit: 'W',
@@ -90,6 +94,7 @@ const domain2DMappings: Record<DomainType, Domain2DMapping> = {
     dictRef: 'M-005',
     intensityName: 'Hydrostatic Pressure',
     intensitySymbol: 'p(x,y)',
+    intensitySymbolTex: 'p(x,y)',
     intensityUnit: 'kPa',
     resultantName: 'Resultant Force',
     resultantUnit: 'kN',
@@ -109,6 +114,7 @@ const domain2DMappings: Record<DomainType, Domain2DMapping> = {
     dictRef: 'M-014',
     intensityName: 'Mass Density',
     intensitySymbol: 'ρ_s(x,y)',
+    intensitySymbolTex: '\\rho_s(x,y)',
     intensityUnit: 'kg/m²',
     resultantName: 'Total Mass',
     resultantUnit: 'kg',
@@ -128,6 +134,7 @@ const domain2DMappings: Record<DomainType, Domain2DMapping> = {
     dictRef: 'M-016',
     intensityName: 'Current Density',
     intensitySymbol: 'J(x,y)',
+    intensitySymbolTex: 'J(x,y)',
     intensityUnit: 'A/m²',
     resultantName: 'Total Current',
     resultantUnit: 'A',
@@ -147,6 +154,7 @@ const domain2DMappings: Record<DomainType, Domain2DMapping> = {
     dictRef: 'M-018',
     intensityName: 'Exhaust Flux',
     intensitySymbol: 'ṁ″(x,y)',
+    intensitySymbolTex: "\\dot{m}''(x,y)",
     intensityUnit: 'kg/(m²·s)',
     resultantName: 'Mass Flow Rate',
     resultantUnit: 'kg/s',
@@ -256,7 +264,7 @@ export function Surface2DSimulator() {
             2D Surface — {dm.intensityName}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {dm.intensitySymbol} over Ω → ∬_Ω {dm.intensitySymbol} dA · Dict ref: {dm.dictRef}
+            <EquationRenderer equation={`$${dm.intensitySymbolTex}$ over $\\Omega$ → $\\iint_\\Omega ${dm.intensitySymbolTex}\\, dA$`} /> · Dict ref: {dm.dictRef}
           </p>
         </div>
         <Badge variant="outline" className={dm.badgeColor}>
