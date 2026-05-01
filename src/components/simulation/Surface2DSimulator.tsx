@@ -154,6 +154,7 @@ const domain2DMappings: Record<DomainType, Domain2DMapping> = {
     dictRef: 'M-018',
     intensityName: 'Exhaust Flux',
     intensitySymbol: 'ṁ″(x,y)',
+    intensitySymbolTex: "\\dot{m}''(x,y)",
     intensityUnit: 'kg/(m²·s)',
     resultantName: 'Mass Flow Rate',
     resultantUnit: 'kg/s',
