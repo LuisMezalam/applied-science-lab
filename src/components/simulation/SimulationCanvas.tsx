@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   AreaChart,
@@ -26,7 +26,7 @@ interface SimulationCanvasProps {
   jordan?: JordanDecomposition;
 }
 
-const DOMAIN_THEMES: Record<string, {
+const DOMAIN_THEMES: Record<DomainType, {
   stroke: string;
   fill: string;
   glow: string;
@@ -51,7 +51,7 @@ const DOMAIN_THEMES: Record<string, {
     label: 'Heat Transfer',
     intensityName: 'Heat Flux',
     positionUnit: 'm',
-    intensityUnit: 'W/m²',
+    intensityUnit: 'W/m^2',
   },
   fluids: {
     stroke: 'hsl(180, 70%, 50%)',
@@ -81,23 +81,22 @@ const DOMAIN_THEMES: Record<string, {
     intensityUnit: 'W',
   },
   propulsion: {
-    stroke: 'hsl(140, 70%, 50%)',
-    fill: 'hsl(140, 70%, 50%)',
-    glow: 'hsl(140, 80%, 60%)',
+    stroke: 'hsl(340, 80%, 58%)',
+    fill: 'hsl(340, 80%, 58%)',
+    glow: 'hsl(340, 90%, 70%)',
     label: 'Propulsion',
     intensityName: 'Thrust Density',
     positionUnit: 'm',
-    intensityUnit: 'N/m²',
+    intensityUnit: 'N/m^2',
   },
 };
 
-const CENTROID_COLOR = '#FBBF24';
-const SIGMA_COLOR = 'hsl(280, 80%, 65%)';
-const WEFF_COLOR = '#22D3EE';
-const JORDAN_POS_COLOR = 'hsl(160, 70%, 50%)';
-const JORDAN_NEG_COLOR = 'hsl(350, 70%, 55%)';
+const CENTROID_COLOR = 'hsl(var(--accent))';
+const SIGMA_COLOR = 'hsl(var(--math))';
+const WEFF_COLOR = 'hsl(var(--fluids))';
+const JORDAN_POS_COLOR = 'hsl(var(--success))';
+const JORDAN_NEG_COLOR = 'hsl(var(--destructive))';
 
-/* ---------- custom tooltip ---------- */
 function CustomTooltip({
   active,
   payload,
@@ -107,12 +106,12 @@ function CustomTooltip({
 }: {
   active?: boolean;
   payload?: Array<{ payload: { x: number; I: number } }>;
-  label?: number;
   domain: DomainType;
   moments: MomentResults;
   negMoments?: NegativeOrderMoments;
 }) {
   if (!active || !payload?.length) return null;
+
   const { x, I } = payload[0].payload;
   const theme = DOMAIN_THEMES[domain];
   const sigma = moments.standardDeviation;
@@ -129,45 +128,34 @@ function CustomTooltip({
     x <= moments.centroid + wEff / 2;
 
   return (
-    <div className="rounded-lg border border-border bg-card/95 backdrop-blur-sm px-3 py-2.5 shadow-lg text-xs space-y-1.5 min-w-[170px]">
-      <div className="flex items-center gap-2 text-foreground font-medium">
-        <span
-          className="w-2 h-2 rounded-full"
-          style={{ background: theme.stroke }}
-        />
+    <div className="min-w-[180px] space-y-1.5 rounded-md border border-border bg-card/95 px-3 py-2.5 text-xs shadow-xl backdrop-blur">
+      <div className="flex items-center gap-2 font-medium text-foreground">
+        <span className="h-2 w-2 rounded-full" style={{ background: theme.stroke }} />
         {theme.label}
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-muted-foreground">
         <span>Position</span>
-        <span className="text-foreground font-mono text-right">
+        <span className="text-right font-mono text-foreground">
           {x.toFixed(3)} {theme.positionUnit}
         </span>
         <span>{theme.intensityName}</span>
-        <span className="text-foreground font-mono text-right">
+        <span className="text-right font-mono text-foreground">
           {I.toFixed(4)} {theme.intensityUnit}
         </span>
       </div>
       {(insideSigma || insideWeff) && (
-        <div className="border-t border-border pt-1.5 space-y-0.5">
+        <div className="space-y-0.5 border-t border-border pt-1.5">
           {insideSigma && (
             <div className="flex items-center gap-1.5">
-              <span
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ background: SIGMA_COLOR }}
-              />
-              <span className="text-muted-foreground">
-                Within ±σ dispersion region
-              </span>
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: SIGMA_COLOR }} />
+              <span className="text-muted-foreground">Inside +/- sigma spread band</span>
             </div>
           )}
           {insideWeff && (
             <div className="flex items-center gap-1.5">
-              <span
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ background: WEFF_COLOR }}
-              />
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: WEFF_COLOR }} />
               <span className="text-muted-foreground">
-                Within w<sub>eff</sub> localization zone
+                Inside w<sub>eff</sub> localization band
               </span>
             </div>
           )}
@@ -177,7 +165,6 @@ function CustomTooltip({
   );
 }
 
-/* ---------- main component ---------- */
 export function SimulationCanvas({
   field,
   moments,
@@ -186,147 +173,138 @@ export function SimulationCanvas({
   showDispersion = true,
   showEffectiveWidth = false,
   negativeOrderMoments,
+  animated = true,
   jordan,
 }: SimulationCanvasProps) {
   const theme = DOMAIN_THEMES[domain] ?? DOMAIN_THEMES.structures;
-
   const hasJordan = !!jordan;
 
-  /* build chart data */
   const data = useMemo(() => {
     return field.positions.map((pos, i) => ({
       x: parseFloat(pos.toFixed(4)),
       I: field.values[i],
       ...(hasJordan ? {
         Splus: jordan!.positivePart.values[i],
-        Sminus: -jordan!.negativePart.values[i], // negative for display below axis
+        Sminus: -jordan!.negativePart.values[i],
       } : {}),
     }));
   }, [field, jordan, hasJordan]);
 
-  const maxI = useMemo(() => Math.max(...field.values.map(Math.abs), 0.01), [field]);
   const minI = useMemo(() => Math.min(...field.values, 0), [field]);
-
-  /* sigma bounds */
   const sigma = moments.standardDeviation;
   const sigmaLeft = moments.centroid - sigma;
   const sigmaRight = moments.centroid + sigma;
-
-  /* weff bounds */
   const wEff = negativeOrderMoments?.effectiveWidth2;
   const wEffLeft =
     wEff != null && wEff < Infinity ? moments.centroid - wEff / 2 : undefined;
   const wEffRight =
     wEff != null && wEff < Infinity ? moments.centroid + wEff / 2 : undefined;
 
-  /* gradient ids */
   const gradId = `intensity-grad-${domain}`;
+  const glowId = `intensity-glow-${domain}`;
   const gradPosId = `jordan-pos-${domain}`;
   const gradNegId = `jordan-neg-${domain}`;
+  const signedDomain = hasJordan || minI < 0;
+  const accessibleSummary = `${theme.label} one-dimensional ${theme.intensityName} chart. Resultant ${moments.zerothMoment.toFixed(4)}, centroid ${moments.centroid.toFixed(4)} ${theme.positionUnit}, spread ${moments.standardDeviation.toFixed(4)} ${theme.positionUnit}.`;
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="w-full h-full min-h-[400px] flex flex-col"
+      role="region"
+      aria-label={`${theme.label} 1D intensity field chart`}
+      className="relative flex h-full min-h-[430px] w-full flex-col overflow-hidden rounded-lg border border-border/45 bg-[radial-gradient(circle_at_20%_10%,hsl(var(--primary)/0.13),transparent_30%),linear-gradient(180deg,hsl(var(--card)/0.95),hsl(var(--background)/0.88))] p-3"
     >
-      {/* Legend strip */}
-      <div className="flex flex-wrap items-center gap-4 mb-2 px-1 text-[11px] text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <span
-            className="w-3 h-[2px] rounded"
-            style={{ background: theme.stroke }}
-          />
-          I(x) — {theme.intensityName}
-        </span>
+      <p className="sr-only">{accessibleSummary}</p>
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+        <LayerKey color={theme.stroke} label={`I(x) - ${theme.intensityName}`} />
         {showCentroid && moments.zerothMoment > 0 && (
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-[2px] rounded" style={{ background: CENTROID_COLOR, borderTop: '1px dashed' }} />
-            x̄ Centroid
-          </span>
+          <LayerKey color={CENTROID_COLOR} label="xbar centroid" dashed />
         )}
         {showDispersion && sigma > 0 && moments.zerothMoment > 0 && (
-          <span className="flex items-center gap-1.5">
-            <span
-              className="w-3 h-2 rounded-sm opacity-40"
-              style={{ background: SIGMA_COLOR }}
-            />
-            ±σ Spread (μ₂)
-          </span>
+          <LayerKey color={SIGMA_COLOR} label="+/- sigma spread" filled />
         )}
         {showEffectiveWidth && wEffLeft != null && (
-          <span className="flex items-center gap-1.5">
-            <span
-              className="w-3 h-2 rounded-sm opacity-40"
-              style={{ background: WEFF_COLOR }}
-            />
-            w<sub>eff</sub> Localization (μ₋ₖ)
-          </span>
+          <LayerKey color={WEFF_COLOR} label="w_eff localization" filled />
         )}
         {hasJordan && (
           <>
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-2 rounded-sm" style={{ background: JORDAN_POS_COLOR, opacity: 0.6 }} />
-              S⁺ Positive
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-2 rounded-sm" style={{ background: JORDAN_NEG_COLOR, opacity: 0.6 }} />
-              S⁻ Negative
-            </span>
+            <LayerKey color={JORDAN_POS_COLOR} label="S+ positive" filled />
+            <LayerKey color={JORDAN_NEG_COLOR} label="S- negative" filled />
           </>
         )}
       </div>
 
-      {/* Chart */}
-      <div className="flex-1 min-h-0">
+      {moments.zerothMoment > 0 && (
+        <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+          <ChartStat label="I0" value={moments.zerothMoment.toFixed(4)} />
+          <ChartStat label="xbar" value={moments.centroid.toFixed(4)} unit={theme.positionUnit} />
+          <ChartStat label="sigma" value={moments.standardDeviation.toFixed(4)} unit={theme.positionUnit} />
+          <ChartStat
+            label="w_eff"
+            value={wEff != null && wEff < Infinity ? wEff.toFixed(4) : 'off'}
+            unit={wEff != null && wEff < Infinity ? theme.positionUnit : undefined}
+          />
+        </div>
+      )}
+
+      <div className="relative min-h-[290px] flex-1 overflow-hidden rounded-md border border-border/35 bg-background/55 shadow-inner">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,hsl(var(--border)/0.25)_1px,transparent_1px),linear-gradient(0deg,hsl(var(--border)/0.2)_1px,transparent_1px)] bg-[size:48px_48px]" />
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={data}
-            margin={{ top: 12, right: 16, bottom: 36, left: 12 }}
+            margin={{ top: 24, right: 22, bottom: 36, left: 12 }}
           >
             <defs>
               <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={theme.fill} stopOpacity={0.35} />
-                <stop offset="95%" stopColor={theme.fill} stopOpacity={0.03} />
+                <stop offset="0%" stopColor={theme.fill} stopOpacity={0.45} />
+                <stop offset="60%" stopColor={theme.fill} stopOpacity={0.16} />
+                <stop offset="100%" stopColor={theme.fill} stopOpacity={0.03} />
               </linearGradient>
               <linearGradient id={gradPosId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={JORDAN_POS_COLOR} stopOpacity={0.4} />
-                <stop offset="95%" stopColor={JORDAN_POS_COLOR} stopOpacity={0.02} />
+                <stop offset="5%" stopColor={JORDAN_POS_COLOR} stopOpacity={0.45} />
+                <stop offset="95%" stopColor={JORDAN_POS_COLOR} stopOpacity={0.03} />
               </linearGradient>
               <linearGradient id={gradNegId} x1="0" y1="1" x2="0" y2="0">
-                <stop offset="5%" stopColor={JORDAN_NEG_COLOR} stopOpacity={0.4} />
-                <stop offset="95%" stopColor={JORDAN_NEG_COLOR} stopOpacity={0.02} />
+                <stop offset="5%" stopColor={JORDAN_NEG_COLOR} stopOpacity={0.45} />
+                <stop offset="95%" stopColor={JORDAN_NEG_COLOR} stopOpacity={0.03} />
               </linearGradient>
+              <filter id={glowId} x="-25%" y="-25%" width="150%" height="150%">
+                <feGaussianBlur stdDeviation="2.2" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
             </defs>
 
             <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="hsl(220, 20%, 15%)"
-              vertical={true}
+              strokeDasharray="3 8"
+              stroke="hsl(var(--border))"
+              strokeOpacity={0.35}
+              vertical
             />
 
-            {/* Dispersion band — render first so it's behind the curve */}
             {showDispersion && sigma > 0 && moments.zerothMoment > 0 && (
               <ReferenceArea
                 x1={Math.max(field.domain[0], sigmaLeft)}
                 x2={Math.min(field.domain[1], sigmaRight)}
                 fill={SIGMA_COLOR}
-                fillOpacity={0.1}
+                fillOpacity={0.12}
                 stroke={SIGMA_COLOR}
-                strokeOpacity={0.3}
+                strokeOpacity={0.38}
                 strokeDasharray="4 4"
               />
             )}
 
-            {/* Effective width band */}
             {showEffectiveWidth && wEffLeft != null && wEffRight != null && (
               <ReferenceArea
                 x1={Math.max(field.domain[0], wEffLeft)}
                 x2={Math.min(field.domain[1], wEffRight)}
                 fill={WEFF_COLOR}
-                fillOpacity={0.08}
+                fillOpacity={0.1}
                 stroke={WEFF_COLOR}
-                strokeOpacity={0.35}
+                strokeOpacity={0.45}
                 strokeDasharray="6 3"
               />
             )}
@@ -336,29 +314,34 @@ export function SimulationCanvas({
               type="number"
               domain={[field.domain[0], field.domain[1]]}
               tickCount={8}
-              tick={{ fill: 'hsl(215, 20%, 55%)', fontSize: 11 }}
-              axisLine={{ stroke: 'hsl(210, 40%, 30%)' }}
-              tickLine={{ stroke: 'hsl(210, 40%, 30%)' }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+              axisLine={{ stroke: 'hsl(var(--border))' }}
+              tickLine={{ stroke: 'hsl(var(--border))' }}
               label={{
-                value: `Position x  [${theme.positionUnit}]`,
+                value: `Position x [${theme.positionUnit}]`,
                 position: 'insideBottom',
-                offset: -20,
-                style: { fill: 'hsl(210, 40%, 70%)', fontSize: 12 },
+                offset: -22,
+                style: { fill: 'hsl(var(--muted-foreground))', fontSize: 12 },
               }}
             />
             <YAxis
-              domain={hasJordan ? ['auto', 'auto'] : [0, (dMax: number) => Math.ceil(dMax * 1.15 * 100) / 100]}
+              domain={signedDomain
+                ? [
+                    (dataMin: number) => Math.floor(dataMin * 1.15 * 100) / 100,
+                    (dataMax: number) => Math.ceil(dataMax * 1.15 * 100) / 100,
+                  ]
+                : [0, (dataMax: number) => Math.ceil(dataMax * 1.15 * 100) / 100]}
               tickCount={6}
-              tick={{ fill: 'hsl(215, 20%, 55%)', fontSize: 11 }}
-              axisLine={{ stroke: 'hsl(210, 40%, 30%)' }}
-              tickLine={{ stroke: 'hsl(210, 40%, 30%)' }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+              axisLine={{ stroke: 'hsl(var(--border))' }}
+              tickLine={{ stroke: 'hsl(var(--border))' }}
               label={{
-                value: `I(x)  [${theme.intensityUnit}]`,
+                value: `I(x) [${theme.intensityUnit}]`,
                 angle: -90,
                 position: 'insideLeft',
                 offset: 4,
                 style: {
-                  fill: 'hsl(210, 40%, 70%)',
+                  fill: 'hsl(var(--muted-foreground))',
                   fontSize: 12,
                   textAnchor: 'middle',
                 },
@@ -374,70 +357,69 @@ export function SimulationCanvas({
                 />
               }
               cursor={{
-                stroke: 'hsl(210, 40%, 40%)',
+                stroke: theme.glow,
                 strokeWidth: 1,
-                strokeDasharray: '4 2',
+                strokeDasharray: '4 3',
               }}
             />
 
-            {/* Zero line for signed fields */}
-            {hasJordan && (
+            {signedDomain && (
               <ReferenceLine
                 y={0}
-                stroke="hsl(210, 40%, 40%)"
+                stroke="hsl(var(--muted-foreground))"
                 strokeWidth={1}
                 strokeDasharray="4 4"
               />
             )}
 
-            {/* S⁺ positive part */}
             {hasJordan && (
               <Area
                 type="monotone"
                 dataKey="Splus"
                 stroke={JORDAN_POS_COLOR}
-                strokeWidth={1.5}
+                strokeWidth={1.75}
                 fill={`url(#${gradPosId})`}
-                animationDuration={600}
+                isAnimationActive={animated}
+                animationDuration={animated ? 650 : 0}
                 dot={false}
                 activeDot={false}
               />
             )}
 
-            {/* S⁻ negative part (plotted as negative values) */}
             {hasJordan && (
               <Area
                 type="monotone"
                 dataKey="Sminus"
                 stroke={JORDAN_NEG_COLOR}
-                strokeWidth={1.5}
+                strokeWidth={1.75}
                 fill={`url(#${gradNegId})`}
-                animationDuration={600}
+                isAnimationActive={animated}
+                animationDuration={animated ? 650 : 0}
                 dot={false}
                 activeDot={false}
               />
             )}
 
-            {/* Main curve */}
             <Area
               type="monotone"
               dataKey="I"
-              stroke={hasJordan ? 'hsl(210, 40%, 60%)' : theme.stroke}
-              strokeWidth={hasJordan ? 1.5 : 2.5}
-              strokeDasharray={hasJordan ? '6 3' : undefined}
+              stroke={hasJordan ? 'hsl(var(--muted-foreground))' : theme.stroke}
+              strokeWidth={hasJordan ? 1.5 : 2.75}
+              strokeDasharray={hasJordan ? '7 4' : undefined}
               fill={hasJordan ? 'none' : `url(#${gradId})`}
-              animationDuration={600}
+              filter={!hasJordan && animated ? `url(#${glowId})` : undefined}
+              isAnimationActive={animated}
+              animationDuration={animated ? 700 : 0}
               animationEasing="ease-in-out"
               dot={false}
               activeDot={{
-                r: 4,
+                r: 5,
                 stroke: theme.glow,
                 strokeWidth: 2,
                 fill: theme.stroke,
               }}
             />
 
-            {/* Centroid reference line */}
             {showCentroid && moments.zerothMoment > 0 && (
               <ReferenceLine
                 x={parseFloat(moments.centroid.toFixed(4))}
@@ -445,7 +427,7 @@ export function SimulationCanvas({
                 strokeWidth={2}
                 strokeDasharray="8 4"
                 label={{
-                  value: `x̄ = ${moments.centroid.toFixed(3)}`,
+                  value: `xbar = ${moments.centroid.toFixed(3)}`,
                   position: 'top',
                   fill: CENTROID_COLOR,
                   fontSize: 11,
@@ -454,14 +436,13 @@ export function SimulationCanvas({
               />
             )}
 
-            {/* Jordan centroid markers */}
             {hasJordan && jordan!.positiveMoments.zerothMoment > 0 && (
               <ReferenceLine
                 x={parseFloat(jordan!.positiveMoments.centroid.toFixed(4))}
                 stroke={JORDAN_POS_COLOR}
                 strokeWidth={1.5}
                 strokeDasharray="4 4"
-                label={{ value: 'x̄⁺', position: 'top', fill: JORDAN_POS_COLOR, fontSize: 10 }}
+                label={{ value: 'xbar+', position: 'top', fill: JORDAN_POS_COLOR, fontSize: 10 }}
               />
             )}
             {hasJordan && jordan!.negativeMoments.zerothMoment > 0 && (
@@ -470,11 +451,10 @@ export function SimulationCanvas({
                 stroke={JORDAN_NEG_COLOR}
                 strokeWidth={1.5}
                 strokeDasharray="4 4"
-                label={{ value: 'x̄⁻', position: 'top', fill: JORDAN_NEG_COLOR, fontSize: 10 }}
+                label={{ value: 'xbar-', position: 'top', fill: JORDAN_NEG_COLOR, fontSize: 10 }}
               />
             )}
 
-            {/* σ boundary lines */}
             {showDispersion && sigma > 0 && moments.zerothMoment > 0 && (
               <>
                 {sigmaLeft >= field.domain[0] && (
@@ -484,7 +464,7 @@ export function SimulationCanvas({
                     strokeWidth={1}
                     strokeDasharray="4 4"
                     label={{
-                      value: '−σ',
+                      value: '-sigma',
                       position: 'top',
                       fill: SIGMA_COLOR,
                       fontSize: 10,
@@ -498,7 +478,7 @@ export function SimulationCanvas({
                     strokeWidth={1}
                     strokeDasharray="4 4"
                     label={{
-                      value: '+σ',
+                      value: '+sigma',
                       position: 'top',
                       fill: SIGMA_COLOR,
                       fontSize: 10,
@@ -508,7 +488,6 @@ export function SimulationCanvas({
               </>
             )}
 
-            {/* w_eff boundary lines */}
             {showEffectiveWidth && wEffLeft != null && wEffRight != null && (
               <>
                 {wEffLeft >= field.domain[0] && (
@@ -530,12 +509,11 @@ export function SimulationCanvas({
               </>
             )}
 
-            {/* Brush for zoom / pan */}
             <Brush
               dataKey="x"
-              height={20}
-              stroke="hsl(210, 40%, 30%)"
-              fill="hsl(222, 47%, 9%)"
+              height={22}
+              stroke="hsl(var(--primary))"
+              fill="hsl(var(--muted))"
               travellerWidth={8}
               tickFormatter={(v: number) => v.toFixed(1)}
             />
@@ -543,32 +521,55 @@ export function SimulationCanvas({
         </ResponsiveContainer>
       </div>
 
-      {/* Moment summary bar */}
       {moments.zerothMoment > 0 && (
-        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1 mt-2 px-1 text-[10px] font-mono text-muted-foreground">
-          <span>
-            I₀ = <span className="text-foreground">{moments.zerothMoment.toFixed(4)}</span>
-          </span>
-          <span>
-            x̄ = <span className="text-foreground">{moments.centroid.toFixed(4)}</span>
-          </span>
-          <span>
-            σ = <span className="text-foreground">{moments.standardDeviation.toFixed(4)}</span>
-          </span>
+        <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 rounded-md border border-border/30 bg-background/35 px-2 py-2 font-mono text-[10px] text-muted-foreground">
+          <span>I0 <span className="text-foreground">{moments.zerothMoment.toFixed(4)}</span></span>
+          <span>xbar <span className="text-foreground">{moments.centroid.toFixed(4)}</span></span>
+          <span>sigma <span className="text-foreground">{moments.standardDeviation.toFixed(4)}</span></span>
           {negativeOrderMoments && wEff != null && wEff < Infinity && (
-            <span>
-              w<sub>eff</sub> ={' '}
-              <span className="text-foreground">{wEff.toFixed(4)}</span>
-            </span>
+            <span>w_eff <span className="text-foreground">{wEff.toFixed(4)}</span></span>
           )}
-          <span>
-            γ₁ = <span className="text-foreground">{moments.skewness.toFixed(3)}</span>
-          </span>
-          <span>
-            κ = <span className="text-foreground">{moments.kurtosis.toFixed(3)}</span>
-          </span>
+          <span>gamma1 <span className="text-foreground">{moments.skewness.toFixed(3)}</span></span>
+          <span>kappa <span className="text-foreground">{moments.kurtosis.toFixed(3)}</span></span>
         </div>
       )}
     </motion.div>
+  );
+}
+
+function LayerKey({
+  color,
+  label,
+  filled,
+  dashed,
+}: {
+  color: string;
+  label: string;
+  filled?: boolean;
+  dashed?: boolean;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border/35 bg-background/35 px-2 py-1">
+      <span
+        className={filled ? 'h-2 w-3 rounded-sm opacity-70' : 'h-[2px] w-4 rounded'}
+        style={{
+          background: color,
+          borderTop: dashed ? `1px dashed ${color}` : undefined,
+        }}
+      />
+      {label}
+    </span>
+  );
+}
+
+function ChartStat({ label, value, unit }: { label: string; value: string; unit?: string }) {
+  return (
+    <div className="rounded-md border border-border/35 bg-background/35 px-3 py-2">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="truncate font-mono text-sm font-semibold text-foreground">
+        {value}
+        {unit && <span className="ml-1 text-[10px] font-normal text-muted-foreground">{unit}</span>}
+      </div>
+    </div>
   );
 }

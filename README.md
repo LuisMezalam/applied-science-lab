@@ -1,73 +1,116 @@
-# Welcome to your Lovable project
+# Applied Science Lab
 
-## Project info
+Applied Science Lab is an interactive engineering physics simulator built around one idea:
+many engineering quantities can be understood as a nonnegative intensity field over a
+domain. Once the domain and intensity are clear, the same moment ladder explains total
+amount, centroid, spread, localization, and sign policy across mechanics, heat transfer,
+fluids, circuits, dynamics, propulsion, materials, and waves.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+This repository contains the public beta application, local verification setup, and
+production-readiness notes.
 
-## How can I edit this code?
+## What Is Inside
 
-There are several ways of editing your application.
+- 1D intensity field simulator for line, time, and parameter domains.
+- 2D surface field simulator for pressure, heat flux, traction, and footprint-style fields.
+- 3D volume field simulator with point density, slicing, color maps, centroids, and inverse moments.
+- Graph moment lab for circuit, FEA error, and compliance intensities.
+- Roadmap Labs for section properties, beam energy, frequency spectra, heat fins, propulsion maps, and stress hotspots.
+- Unified Library with formula blocks, sign-policy notes, aliases, and interactive/candidate badges.
+- Shareable URL state for simulator controls and active labs.
+- Playwright smoke tests, mobile checks, 3D canvas nonblank checks, and desktop visual baselines.
 
-**Use Lovable**
+## Tech Stack
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+- Vite
+- React 18
+- TypeScript
+- Tailwind CSS
+- shadcn/ui and Radix UI
+- React Three Fiber / Three.js
+- Recharts
+- Vitest
+- Playwright
 
-Changes made via Lovable will be committed automatically to this repo.
+## Getting Started
 
-**Use your preferred IDE**
+Requirements:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Node.js 20 or newer
+- npm
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Install and run locally:
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+npm ci
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The development server defaults to Vite's local URL. Playwright uses its own strict test
+port so it can run without colliding with an existing dev session.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Verification
 
-**Use GitHub Codespaces**
+Run the full local verification suite:
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```sh
+npm run verify
+```
 
-## What technologies are used for this project?
+Or run the pieces separately:
 
-This project is built with:
+```sh
+npm run audit:prod
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run test:e2e
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Current known local signals:
 
-## How can I deploy this project?
+- Lint has app-safe Fast Refresh warnings in shared shadcn/ui helper files.
+- Development-only audit issues may require breaking upgrades to Vite/esbuild/jsdom.
+- Formula QA has a checklist, but each entry still needs human technical review before being marked reviewed.
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## GitHub Pages
 
-## Can I connect a custom domain to my Lovable project?
+This repo includes a GitHub Pages workflow at `.github/workflows/pages.yml`.
 
-Yes, you can!
+For a normal project page, the workflow builds with `/<repo-name>/` as the Vite base path.
+For a root Pages repository named like `username.github.io`, it builds with `/`.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+To publish:
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+1. Push the repository to GitHub.
+2. In repository settings, enable GitHub Pages with "GitHub Actions" as the source.
+3. Push to `main` or run the "Deploy GitHub Pages" workflow manually.
+
+For another static host, run:
+
+```sh
+npm run build
+```
+
+Then deploy the `dist` directory.
+
+## Content And Source Policy
+
+The app is designed for copyright-safe learning:
+
+- Do not copy textbook prose into the Library.
+- Paraphrase explanations in original language.
+- Use equations, derived relationships, and high-level source notes.
+- Keep signed quantities explicit: magnitude, square, physical nonnegative energy/power, or positive/negative split.
+
+See `docs/content-and-source-policy.md`, `docs/formula-qa-checklist.md`, and
+`docs/production-readiness-roadmap.md` for the current release trail.
+
+## Status
+
+The app is close to public beta: core tabs load, production builds pass, smoke tests cover
+desktop/mobile, and the main simulators have visual and math regression coverage.
+
+Before calling it production-grade, finish formula QA review, remote CI validation,
+accessibility review, and deployment/privacy decisions.

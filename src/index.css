@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,8 +7,6 @@
 /* Engineering Physics Simulation Design System
    Inspired by NASA mission control & scientific visualization tools
    All colors in HSL format */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @layer base {
   :root {
@@ -37,6 +37,8 @@
     /* Accent - Amber for highlights and warnings */
     --accent: 38 92% 55%;
     --accent-foreground: 222 47% 6%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 222 47% 6%;
 
     /* Destructive/Error - Warm red */
     --destructive: 0 72% 55%;
@@ -120,6 +122,8 @@
     --muted-foreground: 215 20% 40%;
     --accent: 38 92% 50%;
     --accent-foreground: 222 47% 11%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 222 47% 11%;
     --border: 215 20% 88%;
     --input: 215 20% 90%;
     --ring: 210 100% 45%;

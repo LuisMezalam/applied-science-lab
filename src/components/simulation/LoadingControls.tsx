@@ -29,9 +29,9 @@ const domainColors: Record<DomainType, string> = {
   structures: 'text-structures',
   heat: 'text-heat',
   fluids: 'text-fluids',
-  dynamics: 'text-primary',
-  circuits: 'text-warning',
-  propulsion: 'text-success',
+  dynamics: 'text-dynamics',
+  circuits: 'text-circuits',
+  propulsion: 'text-propulsion',
 };
 
 export function LoadingControls({

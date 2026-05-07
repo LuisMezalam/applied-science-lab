@@ -1,7 +1,8 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "applied-science-lab",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "description": "Interactive engineering physics lab for intensity fields, moment ladders, centroids, spread, localization, and sign policy.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +10,12 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
+    "typecheck": "tsc -b --pretty false",
+    "audit:prod": "npm audit --omit=dev",
+    "verify": "npm run audit:prod && npm run lint && npm run typecheck && npm test && npm run build && npm run test:e2e",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -72,6 +78,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.0.0",

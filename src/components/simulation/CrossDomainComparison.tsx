@@ -1,17 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Atom, ArrowLeftRight } from 'lucide-react';
-import { DomainType } from '@/types/physics';
+import { DomainType, LoadingParams, LoadingProfile, MomentResults, NegativeOrderMoments } from '@/types/physics';
 import { profilesByDomain } from '@/lib/physics/loadingProfiles';
 import { generateField, calculateMoments, calculateNegativeOrderMoments, formatValue } from '@/lib/physics/momentCalculus';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend,
 } from 'recharts';
+import { readNumberParam, writeQueryParams } from '@/lib/urlState';
 
 const DOMAINS: DomainType[] = ['structures', 'heat', 'fluids', 'dynamics', 'circuits', 'propulsion'];
 
@@ -24,7 +25,19 @@ const DOMAIN_META: Record<DomainType, { label: string; intensityName: string; un
   propulsion: { label: 'Propulsion', intensityName: 'Thrust Density', unit: 'N/m²', posUnit: 'm', colorVar: 'hsl(var(--propulsion))' },
 };
 
-const MOMENT_LABELS = [
+type MomentMetricKey = 'zerothMoment' | 'centroid' | 'standardDeviation' | 'skewness' | 'kurtosis';
+type DomainResult = {
+  domain: DomainType;
+  profile: LoadingProfile;
+  params: LoadingParams;
+  moments: MomentResults;
+  negMoments: NegativeOrderMoments;
+  meta: (typeof DOMAIN_META)[DomainType];
+};
+type MomentChartRow = { moment: string } & Partial<Record<DomainType, number>>;
+type RadarChartRow = { metric: string } & Partial<Record<DomainType, number>>;
+
+const MOMENT_LABELS: Array<{ key: MomentMetricKey; label: string; short: string }> = [
   { key: 'zerothMoment', label: 'I₀ (Resultant)', short: 'I₀' },
   { key: 'centroid', label: 'x̄ (Centroid)', short: 'x̄' },
   { key: 'standardDeviation', label: 'σ (Spread)', short: 'σ' },
@@ -57,8 +70,8 @@ const INTERPRETATIONS: Record<string, Record<DomainType, string>> = {
 };
 
 export function CrossDomainComparison() {
-  const [magnitude, setMagnitude] = useState(15);
-  const [domainLength, setDomainLength] = useState(10);
+  const [magnitude, setMagnitude] = useState(() => readNumberParam('compareMagnitude', 15));
+  const [domainLength, setDomainLength] = useState(() => readNumberParam('compareLength', 10));
   const epsilonPercent = 5;
 
   // Compute moments for the first profile in each domain
@@ -72,20 +85,13 @@ export function CrossDomainComparison() {
       const scaledEps = (epsilonPercent / 100) * domainLength;
       const negMoments = calculateNegativeOrderMoments(field, moments.centroid, moments.zerothMoment, scaledEps);
       return { domain, profile, params, moments, negMoments, meta: DOMAIN_META[domain] };
-    }).filter(Boolean) as Array<{
-      domain: DomainType;
-      profile: any;
-      params: any;
-      moments: any;
-      negMoments: any;
-      meta: typeof DOMAIN_META[DomainType];
-    }>;
+    }).filter((result): result is DomainResult => result !== null);
   }, [magnitude, domainLength]);
 
   // Bar chart data: normalized moments for comparison
   const barData = useMemo(() => {
     return MOMENT_LABELS.map(({ key, short }) => {
-      const row: any = { moment: short };
+      const row: MomentChartRow = { moment: short };
       domainResults.forEach(r => {
         // Normalize: centroid → fraction of L, σ → fraction of L, others raw
         let val = r.moments[key];
@@ -108,7 +114,7 @@ export function CrossDomainComparison() {
       { key: 'localization', label: 'Localization' },
     ];
     return metrics.map(({ key, label }) => {
-      const row: any = { metric: label };
+      const row: RadarChartRow = { metric: label };
       domainResults.forEach(r => {
         let val = 0;
         switch (key) {
@@ -127,6 +133,13 @@ export function CrossDomainComparison() {
   }, [domainResults, domainLength]);
 
   const domainColors = DOMAINS.map(d => DOMAIN_META[d].colorVar);
+
+  useEffect(() => {
+    writeQueryParams({
+      compareMagnitude: magnitude,
+      compareLength: domainLength,
+    });
+  }, [magnitude, domainLength]);
 
   return (
     <div className="space-y-6">

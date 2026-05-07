@@ -1,4 +1,4 @@
-import { useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Text, PerspectiveCamera } from '@react-three/drei';
 import { motion } from 'framer-motion';
@@ -29,6 +29,12 @@ import { InverseMomentComparison } from './InverseMomentComparison';
 import { formatValue } from '@/lib/physics/momentCalculus';
 import { EquationRenderer } from '@/components/knowledge/EquationRenderer';
 import { DomainType } from '@/types/physics';
+import {
+  readBooleanParam,
+  readEnumParam,
+  readNumberParam,
+  writeQueryParams,
+} from '@/lib/urlState';
 
 // ─── Domain-specific mapping for 3D volumes ─────────────────────────
 // Matches dictionary entries: M-004 (volumetric heat source) and M-017 (body force)
@@ -56,7 +62,7 @@ const domain3DMappings: Record<DomainType, Domain3DMapping> = {
     label: 'Structures',
     icon: Building2,
     colorClass: 'text-structures',
-    badgeColor: 'bg-blue-500/10 text-blue-600 border-blue-500/30',
+    badgeColor: 'bg-structures/10 text-structures border-structures/30',
     dictRef: 'M-017',
     intensityName: 'Body Force Density',
     intensitySymbol: 'b(x,y,z)',
@@ -74,7 +80,7 @@ const domain3DMappings: Record<DomainType, Domain3DMapping> = {
     label: 'Heat Transfer',
     icon: Flame,
     colorClass: 'text-heat',
-    badgeColor: 'bg-orange-500/10 text-orange-600 border-orange-500/30',
+    badgeColor: 'bg-heat/10 text-heat border-heat/30',
     dictRef: 'M-004',
     intensityName: 'Volumetric Heat Source',
     intensitySymbol: "q'''(x,y,z)",
@@ -92,7 +98,7 @@ const domain3DMappings: Record<DomainType, Domain3DMapping> = {
     label: 'Fluids',
     icon: Droplets,
     colorClass: 'text-fluids',
-    badgeColor: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/30',
+    badgeColor: 'bg-fluids/10 text-fluids border-fluids/30',
     dictRef: 'M-017',
     intensityName: 'Buoyancy Force Density',
     intensitySymbol: 'f_b(x,y,z)',
@@ -109,8 +115,8 @@ const domain3DMappings: Record<DomainType, Domain3DMapping> = {
   dynamics: {
     label: 'Dynamics',
     icon: Activity,
-    colorClass: 'text-primary',
-    badgeColor: 'bg-purple-500/10 text-purple-600 border-purple-500/30',
+    colorClass: 'text-dynamics',
+    badgeColor: 'bg-dynamics/10 text-dynamics border-dynamics/30',
     dictRef: 'M-014',
     intensityName: 'Mass Density',
     intensitySymbol: 'ρ(x,y,z)',
@@ -127,8 +133,8 @@ const domain3DMappings: Record<DomainType, Domain3DMapping> = {
   circuits: {
     label: 'Circuits',
     icon: Zap,
-    colorClass: 'text-warning',
-    badgeColor: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30',
+    colorClass: 'text-circuits',
+    badgeColor: 'bg-circuits/10 text-circuits border-circuits/30',
     dictRef: 'M-016',
     intensityName: 'Current Density',
     intensitySymbol: 'J(x,y,z)',
@@ -145,8 +151,8 @@ const domain3DMappings: Record<DomainType, Domain3DMapping> = {
   propulsion: {
     label: 'Propulsion',
     icon: Rocket,
-    colorClass: 'text-success',
-    badgeColor: 'bg-green-500/10 text-green-600 border-green-500/30',
+    colorClass: 'text-propulsion',
+    badgeColor: 'bg-propulsion/10 text-propulsion border-propulsion/30',
     dictRef: 'M-018',
     intensityName: 'Thrust Density',
     intensitySymbol: 'f_T(x,y,z)',
@@ -176,26 +182,87 @@ const loadingOptions = [
   { value: 'exponential', label: 'Exponential' },
 ];
 
-function VolumetricPoints({ points, maxIntensity }: { points: Point3D[]; maxIntensity: number }) {
+type ColorMap = 'thermal' | 'viridis' | 'grayscale';
+
+const colorMapOptions: Array<{ value: ColorMap; label: string }> = [
+  { value: 'thermal', label: 'Thermal' },
+  { value: 'viridis', label: 'Viridis' },
+  { value: 'grayscale', label: 'Grayscale' },
+];
+
+const DOMAIN_VALUES: readonly DomainType[] = [
+  'structures',
+  'heat',
+  'fluids',
+  'dynamics',
+  'circuits',
+  'propulsion',
+];
+const SHAPE_VALUES: readonly Shape3D[] = ['box', 'sphere', 'cylinder'];
+const LOADING_VALUES: readonly Shape3DParams['loadingType'][] = [
+  'uniform',
+  'linear-z',
+  'radial',
+  'parabolic',
+  'exponential',
+];
+const COLOR_MAP_VALUES: readonly ColorMap[] = ['thermal', 'viridis', 'grayscale'];
+
+function getInitial3DParams(): Shape3DParams {
+  return {
+    shape: readEnumParam('shape3d', SHAPE_VALUES, 'box'),
+    width: readNumberParam('width3d', 2),
+    height: readNumberParam('height3d', 1.5),
+    depth: readNumberParam('depth3d', 1),
+    radius: readNumberParam('radius3d', 1),
+    magnitude: readNumberParam('magnitude3d', 10),
+    loadingType: readEnumParam('loading3d', LOADING_VALUES, 'uniform'),
+  };
+}
+
+function applyColorMap(color: THREE.Color, t: number, colorMap: ColorMap) {
+  const clamped = Math.max(0, Math.min(1, t));
+
+  switch (colorMap) {
+    case 'viridis':
+      color.setHSL(0.76 - 0.58 * clamped, 0.82, 0.34 + 0.16 * clamped);
+      break;
+    case 'grayscale':
+      color.setHSL(0.58, 0.04, 0.24 + 0.52 * clamped);
+      break;
+    default:
+      color.setHSL(0.58 - 0.46 * clamped, 0.9, 0.48 + 0.12 * clamped);
+      break;
+  }
+}
+
+function VolumetricPoints({
+  points,
+  maxIntensity,
+  colorMap,
+}: {
+  points: Point3D[];
+  maxIntensity: number;
+  colorMap: ColorMap;
+}) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
   // Update instance matrices and colors
-  useMemo(() => {
+  useEffect(() => {
     if (!meshRef.current) return;
     
     const color = new THREE.Color();
     
     points.forEach((p, i) => {
       dummy.position.set(p.x, p.z, p.y); // Swap y/z for three.js convention
-      const scale = 0.03 + 0.05 * (p.intensity / maxIntensity);
+      const t = p.intensity / maxIntensity;
+      const scale = 0.035 + 0.075 * Math.sqrt(Math.max(0, t));
       dummy.scale.setScalar(scale);
       dummy.updateMatrix();
       meshRef.current!.setMatrixAt(i, dummy.matrix);
       
-      // Color based on intensity (blue to orange)
-      const t = p.intensity / maxIntensity;
-      color.setHSL(0.6 - 0.5 * t, 0.8, 0.5);
+      applyColorMap(color, t, colorMap);
       meshRef.current!.setColorAt(i, color);
     });
     
@@ -203,21 +270,21 @@ function VolumetricPoints({ points, maxIntensity }: { points: Point3D[]; maxInte
     if (meshRef.current.instanceColor) {
       meshRef.current.instanceColor.needsUpdate = true;
     }
-  }, [points, maxIntensity, dummy]);
+  }, [points, maxIntensity, dummy, colorMap]);
 
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, points.length]}>
       <sphereGeometry args={[1, 8, 8]} />
-      <meshStandardMaterial vertexColors />
+      <meshStandardMaterial vertexColors roughness={0.38} metalness={0.08} emissive="#0ea5e9" emissiveIntensity={0.08} />
     </instancedMesh>
   );
 }
 
-function CentroidMarker({ x, y, z }: { x: number; y: number; z: number }) {
+function CentroidMarker({ x, y, z, animated }: { x: number; y: number; z: number; animated: boolean }) {
   const groupRef = useRef<THREE.Group>(null);
   
   useFrame((state) => {
-    if (groupRef.current) {
+    if (animated && groupRef.current) {
       groupRef.current.rotation.y = state.clock.elapsedTime * 0.5;
     }
   });
@@ -276,16 +343,18 @@ function AxesHelper() {
 function EffectiveRadiusEllipsoid({ 
   centroid, 
   radii,
-  visible 
+  visible,
+  animated,
 }: { 
   centroid: { x: number; y: number; z: number };
   radii: { x: number; y: number; z: number };
   visible: boolean;
+  animated: boolean;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   
   useFrame((state) => {
-    if (meshRef.current) {
+    if (animated && meshRef.current) {
       // Subtle pulsing effect
       const scale = 1 + 0.02 * Math.sin(state.clock.elapsedTime * 2);
       meshRef.current.scale.set(
@@ -339,18 +408,90 @@ function EffectiveRadiusWireframe({
   );
 }
 
+function ShapeFrame({ params }: { params: Shape3DParams }) {
+  const material = (
+    <meshBasicMaterial
+      color="#60a5fa"
+      wireframe
+      transparent
+      opacity={0.28}
+      depthWrite={false}
+    />
+  );
+
+  if (params.shape === 'sphere') {
+    const radius = params.radius || 1;
+    return (
+      <mesh>
+        <sphereGeometry args={[radius, 40, 20]} />
+        {material}
+      </mesh>
+    );
+  }
+
+  if (params.shape === 'cylinder') {
+    const radius = params.radius || 1;
+    const height = params.height || 2;
+    return (
+      <mesh>
+        <cylinderGeometry args={[radius, radius, height, 48, 8, true]} />
+        {material}
+      </mesh>
+    );
+  }
+
+  return (
+    <mesh>
+      <boxGeometry args={[params.width || 2, params.depth || 1, params.height || 1.5]} />
+      {material}
+    </mesh>
+  );
+}
+
+function SlicePlane({
+  params,
+  sliceZ,
+  visible,
+}: {
+  params: Shape3DParams;
+  sliceZ: number;
+  visible: boolean;
+}) {
+  if (!visible) return null;
+
+  const planeSize =
+    params.shape === 'sphere'
+      ? (params.radius || 1) * 2.25
+      : Math.max(params.width || 2, params.depth || params.radius || 1) * 1.15;
+
+  return (
+    <mesh position={[0, sliceZ, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[planeSize, planeSize]} />
+      <meshBasicMaterial color="#facc15" transparent opacity={0.16} side={THREE.DoubleSide} depthWrite={false} />
+    </mesh>
+  );
+}
+
 function Scene({ 
   points, 
   moments, 
   maxIntensity,
   negativeOrderMoments,
-  showEllipsoid
+  showEllipsoid,
+  params,
+  colorMap,
+  sliceZ,
+  sliceActive,
 }: { 
   points: Point3D[]; 
   moments: ReturnType<typeof calculate3DMoments>;
   maxIntensity: number;
   negativeOrderMoments: Moment3DNegativeOrder | null;
   showEllipsoid: boolean;
+  params: Shape3DParams;
+  colorMap: ColorMap;
+  sliceZ: number;
+  sliceActive: boolean;
 }) {
   const effectiveRadii = negativeOrderMoments ? {
     x: negativeOrderMoments.effectiveRadiusX,
@@ -363,45 +504,49 @@ function Scene({
     y: moments.centroidY,
     z: moments.centroidZ
   };
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const animated = !prefersReducedMotion;
   
   return (
     <>
-      <PerspectiveCamera makeDefault position={[4, 3, 4]} />
-      <OrbitControls enableDamping dampingFactor={0.05} />
+      <color attach="background" args={['#040714']} />
+      <fog attach="fog" args={['#040714', 5.5, 10]} />
+      <PerspectiveCamera makeDefault position={[4.4, 3.4, 4.4]} fov={46} />
+      <OrbitControls enableDamping dampingFactor={0.05} enablePan={false} minDistance={2.4} maxDistance={8} />
       
-      <ambientLight intensity={0.4} />
-      <directionalLight position={[5, 5, 5]} intensity={0.8} />
-      <directionalLight position={[-5, 3, -5]} intensity={0.4} />
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[5, 5, 5]} intensity={1.1} />
+      <directionalLight position={[-5, 3, -5]} intensity={0.45} />
+      <pointLight position={[0, 2.8, 2.5]} intensity={0.75} color="#38bdf8" />
       
+      <ShapeFrame params={params} />
+      <SlicePlane params={params} sliceZ={sliceZ} visible={sliceActive} />
       <AxesHelper />
-      <VolumetricPoints points={points} maxIntensity={maxIntensity} />
-      <CentroidMarker x={moments.centroidX} y={moments.centroidY} z={moments.centroidZ} />
+      <VolumetricPoints points={points} maxIntensity={maxIntensity} colorMap={colorMap} />
+      <CentroidMarker x={moments.centroidX} y={moments.centroidY} z={moments.centroidZ} animated={animated} />
       
       {/* Effective radius ellipsoid visualization */}
-      <EffectiveRadiusEllipsoid centroid={centroid} radii={effectiveRadii} visible={showEllipsoid} />
+      <EffectiveRadiusEllipsoid centroid={centroid} radii={effectiveRadii} visible={showEllipsoid} animated={animated} />
       <EffectiveRadiusWireframe centroid={centroid} radii={effectiveRadii} visible={showEllipsoid} />
       
       {/* Ground grid */}
-      <gridHelper args={[6, 12, '#444444', '#333333']} position={[0, -1.5, 0]} />
+      <gridHelper args={[6, 18, '#1d4ed8', '#1f2937']} position={[0, -1.55, 0]} />
     </>
   );
 }
 
 export function Volume3DSimulator() {
-  const [params, setParams] = useState<Shape3DParams>({
-    shape: 'box',
-    width: 2,
-    height: 1.5,
-    depth: 1,
-    radius: 1,
-    magnitude: 10,
-    loadingType: 'uniform',
-  });
+  const [params, setParams] = useState<Shape3DParams>(() => getInitial3DParams());
   
-  const [epsilonPercent, setEpsilonPercent] = useState(5); // % of characteristic length
-  const [showEllipsoid, setShowEllipsoid] = useState(true);
-  const [showNegativeMoments, setShowNegativeMoments] = useState(true);
-  const [activeDomain, setActiveDomain] = useState<DomainType>('structures');
+  const [epsilonPercent, setEpsilonPercent] = useState(() => readNumberParam('eps3d', 5));
+  const [showEllipsoid, setShowEllipsoid] = useState(() => readBooleanParam('ellipsoid3d', true));
+  const [showNegativeMoments, setShowNegativeMoments] = useState(() => readBooleanParam('neg3d', true));
+  const [activeDomain, setActiveDomain] = useState<DomainType>(() => readEnumParam('domain3d', DOMAIN_VALUES, 'structures'));
+  const [sampleResolution, setSampleResolution] = useState(() => readNumberParam('density3d', 12));
+  const [slicePercent, setSlicePercent] = useState(() => readNumberParam('slice3d', 100));
+  const [colorMap, setColorMap] = useState<ColorMap>(() => readEnumParam('color3d', COLOR_MAP_VALUES, 'thermal'));
   const dm = domain3DMappings[activeDomain];
   const DomainIcon = dm.icon;
 
@@ -422,7 +567,7 @@ export function Volume3DSimulator() {
   const epsilon = (epsilonPercent / 100) * characteristicLength;
 
   const { points, moments, maxIntensity, negativeOrderMoments } = useMemo(() => {
-    const pts = generate3DField(params, 12);
+    const pts = generate3DField(params, sampleResolution);
     const mom = calculate3DMoments(pts, params.shape, params);
     const maxI = Math.max(...pts.map(p => p.intensity), 0.001);
     
@@ -435,10 +580,48 @@ export function Volume3DSimulator() {
     ) : null;
     
     return { points: pts, moments: mom, maxIntensity: maxI, negativeOrderMoments: negMom };
-  }, [params, epsilon, showNegativeMoments]);
+  }, [params, epsilon, showNegativeMoments, sampleResolution]);
+
+  const { displayedPoints, sliceZ, sliceActive } = useMemo(() => {
+    if (points.length === 0) {
+      return { displayedPoints: points, sliceZ: 0, sliceActive: false };
+    }
+
+    const zValues = points.map(point => point.z);
+    const minZ = Math.min(...zValues);
+    const maxZ = Math.max(...zValues);
+    const boundedPercent = Math.max(0, Math.min(100, slicePercent));
+    const nextSliceZ = minZ + (boundedPercent / 100) * (maxZ - minZ);
+    const clipped = points.filter(point => point.z <= nextSliceZ + 1e-9);
+
+    return {
+      displayedPoints: clipped.length > 0 ? clipped : points.slice(0, 1),
+      sliceZ: nextSliceZ,
+      sliceActive: boundedPercent < 99.5,
+    };
+  }, [points, slicePercent]);
+
+  useEffect(() => {
+    writeQueryParams({
+      domain3d: activeDomain,
+      shape3d: params.shape,
+      loading3d: params.loadingType,
+      magnitude3d: params.magnitude,
+      width3d: params.width,
+      height3d: params.height,
+      depth3d: params.depth,
+      radius3d: params.radius,
+      eps3d: epsilonPercent,
+      ellipsoid3d: showEllipsoid,
+      neg3d: showNegativeMoments,
+      density3d: sampleResolution,
+      slice3d: slicePercent,
+      color3d: colorMap,
+    });
+  }, [activeDomain, params, epsilonPercent, showEllipsoid, showNegativeMoments, sampleResolution, slicePercent, colorMap]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
@@ -457,8 +640,20 @@ export function Volume3DSimulator() {
         </Badge>
       </div>
 
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <VolumeStat label={`${dm.resultantName} I0`} value={formatValue(moments.I0)} unit={dm.resultantUnit} tone="primary" />
+        <VolumeStat label="Centroid xbar" value={formatValue(moments.centroidX)} unit="m" tone="accent" />
+        <VolumeStat label="Centroid ybar" value={formatValue(moments.centroidY)} unit="m" tone="accent" />
+        <VolumeStat
+          label="r_eff"
+          value={negativeOrderMoments ? formatValue(negativeOrderMoments.effectiveRadius) : 'off'}
+          unit={negativeOrderMoments ? 'm' : ''}
+          tone="warning"
+        />
+      </div>
+
       {/* Domain Selector */}
-      <Card className="border-border/50 bg-card/60 backdrop-blur">
+      <Card className="border-border/50 bg-card/70 backdrop-blur">
         <CardContent className="pt-4 pb-3">
           <Label className="text-xs text-muted-foreground uppercase tracking-wide mb-2 block">
             Engineering Domain
@@ -487,13 +682,13 @@ export function Volume3DSimulator() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
         {/* Controls */}
-        <Card className="border-border/50 bg-card/60 backdrop-blur">
-          <CardHeader className="pb-4">
+        <Card className="border-border/50 bg-card/75 backdrop-blur">
+          <CardHeader className="border-b border-border/30 pb-3">
             <CardTitle className="text-base">Volume & Loading</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-6 pt-4">
             {/* Shape Selection */}
             <div className="space-y-2">
               <Label>Shape</Label>
@@ -618,6 +813,44 @@ export function Volume3DSimulator() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label>Point Density: {sampleResolution}</Label>
+              <Slider
+                value={[sampleResolution]}
+                onValueChange={([v]) => setSampleResolution(v)}
+                min={8}
+                max={16}
+                step={1}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Visible Z Slice: {slicePercent.toFixed(0)}%</Label>
+              <Slider
+                value={[slicePercent]}
+                onValueChange={([v]) => setSlicePercent(v)}
+                min={5}
+                max={100}
+                step={5}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Color Map</Label>
+              <Select value={colorMap} onValueChange={(value) => setColorMap(value as ColorMap)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {colorMapOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Toggle for Negative-Order Moments */}
             <div className="flex items-center justify-between pt-2 border-t border-border/30">
               <Label className="text-sm">Negative-Order Moments (ε-Regularized)</Label>
@@ -630,19 +863,47 @@ export function Volume3DSimulator() {
         </Card>
 
         {/* 3D Visualization */}
-        <Card className="border-border/50 bg-card/60 backdrop-blur">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base">Volumetric Distribution</CardTitle>
+        <Card className="overflow-hidden border-border/50 bg-card/80 backdrop-blur">
+          <CardHeader className="border-b border-border/30 pb-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle className="text-base">Volumetric Distribution</CardTitle>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className={dm.badgeColor}>{params.shape}</Badge>
+                <Badge variant="outline" className="border-border/40 bg-background/40 text-muted-foreground">
+                  {displayedPoints.length.toLocaleString()} / {points.length.toLocaleString()} samples
+                </Badge>
+                <Badge variant="outline" className="border-border/40 bg-background/40 text-muted-foreground">
+                  {colorMap}
+                </Badge>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="h-[350px] rounded-lg overflow-hidden bg-background/50 border border-border/30">
-              <Canvas>
+            <CardContent className="pt-4">
+            <div
+              className="relative h-[460px] overflow-hidden rounded-lg border border-border/35 bg-background/70 shadow-inner"
+              role="region"
+              aria-label={`${dm.label} 3D ${dm.intensityName} volumetric visualization`}
+            >
+              <p className="sr-only">
+                {`3D ${dm.intensityName} field. Resultant ${formatValue(moments.I0)} ${dm.resultantUnit}; centroid (${formatValue(moments.centroidX)}, ${formatValue(moments.centroidY)}, ${formatValue(moments.centroidZ)}) meters; ${displayedPoints.length} of ${points.length} samples visible.`}
+              </p>
+              <div className="pointer-events-none absolute left-3 top-3 z-10 rounded-md border border-border/40 bg-background/55 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur">
+                Orbit drag / Scroll zoom
+              </div>
+              <Canvas
+                role="img"
+                aria-label={`${dm.label} 3D ${dm.intensityName} point cloud and centroid`}
+              >
                 <Scene 
-                  points={points} 
+                  points={displayedPoints} 
                   moments={moments} 
                   maxIntensity={maxIntensity}
                   negativeOrderMoments={negativeOrderMoments}
                   showEllipsoid={showEllipsoid}
+                  params={params}
+                  colorMap={colorMap}
+                  sliceZ={sliceZ}
+                  sliceActive={sliceActive}
                 />
               </Canvas>
             </div>
@@ -658,8 +919,14 @@ export function Volume3DSimulator() {
                     r_eff ellipsoid
                   </span>
                 )}
+                {sliceActive && (
+                  <span className="flex items-center gap-2">
+                    <span className="h-3 w-3 rounded-sm bg-yellow-400/50" />
+                    slice plane
+                  </span>
+                )}
               </div>
-              <span>Drag to rotate • Scroll to zoom</span>
+              <span>Drag to rotate / Scroll to zoom</span>
             </div>
           </CardContent>
         </Card>
@@ -924,5 +1191,33 @@ function MomentCard3D({
       </div>
       <div className="text-xs text-fluids/70 mt-1">{description}</div>
     </motion.div>
+  );
+}
+
+function VolumeStat({
+  label,
+  value,
+  unit,
+  tone,
+}: {
+  label: string;
+  value: string;
+  unit: string;
+  tone: 'primary' | 'accent' | 'warning';
+}) {
+  const toneClasses = {
+    primary: 'border-primary/25 bg-primary/10 text-primary',
+    accent: 'border-accent/25 bg-accent/10 text-accent',
+    warning: 'border-warning/25 bg-warning/10 text-warning',
+  };
+
+  return (
+    <div className={`rounded-md border px-3 py-2 ${toneClasses[tone]}`}>
+      <div className="mb-1 truncate text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="truncate font-mono text-sm font-semibold text-foreground">
+        {value}
+        {unit && <span className="ml-1 text-[10px] font-normal text-muted-foreground">{unit}</span>}
+      </div>
+    </div>
   );
 }

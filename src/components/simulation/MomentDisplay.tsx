@@ -23,9 +23,9 @@ const domainStyles: Record<DomainType, string> = {
   structures: 'border-structures/30 bg-structures/5',
   heat: 'border-heat/30 bg-heat/5',
   fluids: 'border-fluids/30 bg-fluids/5',
-  dynamics: 'border-primary/30 bg-primary/5',
-  circuits: 'border-warning/30 bg-warning/5',
-  propulsion: 'border-success/30 bg-success/5',
+  dynamics: 'border-dynamics/30 bg-dynamics/5',
+  circuits: 'border-circuits/30 bg-circuits/5',
+  propulsion: 'border-propulsion/30 bg-propulsion/5',
 };
 
 const containerVariants = {

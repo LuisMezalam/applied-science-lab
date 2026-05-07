@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WalkthroughControls, StageHighlight, WALKTHROUGH_STEPS } from './backbone/WalkthroughOverlay';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,7 @@ import {
   Cpu,
   Rocket,
 } from 'lucide-react';
+import { readEnumParam, writeQueryParams } from '@/lib/urlState';
 
 /* ── Domain-specific mapping of the generic conservation law ── */
 
@@ -130,6 +131,8 @@ const MAPPINGS: BalanceLawMapping[] = [
   },
 ];
 
+const BALANCE_DOMAIN_VALUES = MAPPINGS.map(mapping => mapping.domain);
+
 /* ── Animated flow arrow ── */
 
 function FlowArrow({
@@ -143,7 +146,7 @@ function FlowArrow({
 }) {
   return (
     <div className="relative flex flex-col items-center w-full py-1">
-      <svg width="40" height="28" viewBox="0 0 40 28" className="overflow-visible">
+      <svg width="40" height="28" viewBox="0 0 40 28" className="overflow-visible" aria-hidden="true" focusable="false">
         {/* Track line */}
         <line x1="20" y1="0" x2="20" y2="28" stroke={color} strokeWidth="1.5" strokeOpacity="0.25" />
         {/* Arrowhead */}
@@ -179,7 +182,7 @@ function FlowArrow({
       </svg>
       {label && (
         <span
-          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full ml-2 text-[9px] font-mono tracking-wider uppercase"
+          className="absolute left-1/2 top-1/2 ml-7 -translate-y-1/2 text-[9px] font-mono tracking-wider uppercase"
           style={{ color, paddingLeft: 6 }}
         >
           {label}
@@ -196,7 +199,7 @@ function TriFlowArrow({ color }: { color: string }) {
     <div className="flex items-center justify-center gap-10 w-full py-1">
       {['ψ', 'J', 's'].map((sym, i) => (
         <div key={sym} className="relative flex flex-col items-center">
-          <svg width="24" height="24" viewBox="0 0 24 24" className="overflow-visible">
+          <svg width="24" height="24" viewBox="0 0 24 24" className="overflow-visible" aria-hidden="true" focusable="false">
             <line x1="12" y1="0" x2="12" y2="24" stroke={color} strokeWidth="1" strokeOpacity="0.2" />
             <polygon points="8,17 12,24 16,17" fill={color} fillOpacity="0.4" />
             <motion.circle
@@ -445,7 +448,9 @@ function DomainCard({
 /* ── Main component ── */
 
 export function BalanceLawBackbone() {
-  const [selectedDomain, setSelectedDomain] = useState<DomainType>('structures');
+  const [selectedDomain, setSelectedDomain] = useState<DomainType>(() =>
+    readEnumParam('balanceDomain', BALANCE_DOMAIN_VALUES, 'structures'),
+  );
   const selected = MAPPINGS.find((m) => m.domain === selectedDomain) ?? null;
 
   const [walkthroughStep, setWalkthroughStep] = useState(-1); // -1 = inactive
@@ -456,6 +461,10 @@ export function BalanceLawBackbone() {
   const exitWalkthrough = useCallback(() => setWalkthroughStep(-1), []);
   const nextStep = useCallback(() => setWalkthroughStep((s) => Math.min(s + 1, WALKTHROUGH_STEPS.length - 1)), []);
   const prevStep = useCallback(() => setWalkthroughStep((s) => Math.max(s - 1, 0)), []);
+
+  useEffect(() => {
+    writeQueryParams({ balanceDomain: selectedDomain });
+  }, [selectedDomain]);
 
   return (
     <div className="space-y-6">

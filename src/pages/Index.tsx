@@ -1,23 +1,66 @@
-import { useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Header, ActiveTab } from '@/components/layout/Header';
-import { MomentSimulator } from '@/components/simulation/MomentSimulator';
-import { CrossDomainComparison } from '@/components/simulation/CrossDomainComparison';
-import { BalanceLawBackbone } from '@/components/simulation/BalanceLawBackbone';
-import { Surface2DSimulator } from '@/components/simulation/Surface2DSimulator';
-import { Volume3DSimulator } from '@/components/simulation/Volume3DSimulator';
-import { KnowledgeLibrary } from '@/components/knowledge/KnowledgeLibrary';
-import { MasterDictionary } from '@/components/knowledge/MasterDictionary';
+import { readEnumParam, writeQueryParams } from '@/lib/urlState';
 import { Atom, ArrowRight, Layers, TrendingUp, Binary } from 'lucide-react';
 import heroImage from '@/assets/hero-physics.jpg';
 
+const TABS: ActiveTab[] = ['simulator', 'surface2d', 'volume3d', 'graph', 'labs', 'comparison', 'balance', 'library'];
+
+const MomentSimulator = lazy(() =>
+  import('@/components/simulation/MomentSimulator').then((module) => ({ default: module.MomentSimulator }))
+);
+const Surface2DSimulator = lazy(() =>
+  import('@/components/simulation/Surface2DSimulator').then((module) => ({ default: module.Surface2DSimulator }))
+);
+const Volume3DSimulator = lazy(() =>
+  import('@/components/simulation/Volume3DSimulator').then((module) => ({ default: module.Volume3DSimulator }))
+);
+const GraphMomentLab = lazy(() =>
+  import('@/components/simulation/GraphMomentLab').then((module) => ({ default: module.GraphMomentLab }))
+);
+const RoadmapLabs = lazy(() =>
+  import('@/components/simulation/RoadmapLabs').then((module) => ({ default: module.RoadmapLabs }))
+);
+const CrossDomainComparison = lazy(() =>
+  import('@/components/simulation/CrossDomainComparison').then((module) => ({ default: module.CrossDomainComparison }))
+);
+const BalanceLawBackbone = lazy(() =>
+  import('@/components/simulation/BalanceLawBackbone').then((module) => ({ default: module.BalanceLawBackbone }))
+);
+const KnowledgeLibrary = lazy(() =>
+  import('@/components/knowledge/KnowledgeLibrary').then((module) => ({ default: module.KnowledgeLibrary }))
+);
+
+function getInitialTab(): ActiveTab {
+  return readEnumParam('tab', TABS, 'simulator');
+}
+
 const Index = () => {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('simulator');
+  const [activeTab, setActiveTab] = useState<ActiveTab>(getInitialTab);
   const [showHero, setShowHero] = useState(true);
+
+  const handleTabChange = useCallback((tab: ActiveTab) => {
+    setActiveTab(tab);
+    writeQueryParams({ tab }, 'push');
+
+    if (tab !== 'simulator') {
+      setShowHero(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveTab(getInitialTab());
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
-      <Header activeTab={activeTab} onTabChange={setActiveTab} />
+      <Header activeTab={activeTab} onTabChange={handleTabChange} />
       
       <main className="container mx-auto px-4 py-6">
         <AnimatePresence mode="wait">
@@ -89,7 +132,7 @@ const Index = () => {
                         <ArrowRight className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => setActiveTab('library')}
+                        onClick={() => handleTabChange('library')}
                         className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-secondary text-secondary-foreground font-medium hover:bg-secondary/80 transition-colors"
                       >
                         View Knowledge Base
@@ -130,90 +173,107 @@ const Index = () => {
         </AnimatePresence>
 
         {/* Main Content */}
-        <AnimatePresence mode="wait">
-          {activeTab === 'simulator' && (
-            <motion.div
-              key="simulator"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="min-h-[600px]"
-            >
-              <MomentSimulator />
-            </motion.div>
-          )}
-          {activeTab === 'surface2d' && (
-            <motion.div
-              key="surface2d"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="min-h-[600px]"
-            >
-              <Surface2DSimulator />
-            </motion.div>
-          )}
-          {activeTab === 'volume3d' && (
-            <motion.div
-              key="volume3d"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="min-h-[600px]"
-            >
-              <Volume3DSimulator />
-            </motion.div>
-          )}
-          {activeTab === 'comparison' && (
-            <motion.div
-              key="comparison"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="min-h-[600px]"
-            >
-              <CrossDomainComparison />
-            </motion.div>
-          )}
-          {activeTab === 'balance' && (
-            <motion.div
-              key="balance"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="min-h-[600px]"
-            >
-              <BalanceLawBackbone />
-            </motion.div>
-          )}
-          {activeTab === 'dictionary' && (
-            <motion.div
-              key="dictionary"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <MasterDictionary />
-            </motion.div>
-          )}
-          {activeTab === 'library' && (
-            <motion.div
-              key="library"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <KnowledgeLibrary />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <Suspense fallback={<TabLoading activeTab={activeTab} />}>
+          <AnimatePresence mode="wait">
+            {activeTab === 'simulator' && (
+              <motion.div
+                key="simulator"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="min-h-[600px]"
+              >
+                <MomentSimulator />
+              </motion.div>
+            )}
+            {activeTab === 'surface2d' && (
+              <motion.div
+                key="surface2d"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="min-h-[600px]"
+              >
+                <Surface2DSimulator />
+              </motion.div>
+            )}
+            {activeTab === 'volume3d' && (
+              <motion.div
+                key="volume3d"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="min-h-[600px]"
+              >
+                <Volume3DSimulator />
+              </motion.div>
+            )}
+            {activeTab === 'comparison' && (
+              <motion.div
+                key="comparison"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="min-h-[600px]"
+              >
+                <CrossDomainComparison />
+              </motion.div>
+            )}
+            {activeTab === 'graph' && (
+              <motion.div
+                key="graph"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="min-h-[600px]"
+              >
+                <GraphMomentLab />
+              </motion.div>
+            )}
+            {activeTab === 'labs' && (
+              <motion.div
+                key="labs"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="min-h-[600px]"
+              >
+                <RoadmapLabs />
+              </motion.div>
+            )}
+            {activeTab === 'balance' && (
+              <motion.div
+                key="balance"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="min-h-[600px]"
+              >
+                <BalanceLawBackbone />
+              </motion.div>
+            )}
+            {activeTab === 'library' && (
+              <motion.div
+                key="library"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <KnowledgeLibrary />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Suspense>
       </main>
 
       {/* Footer */}
       <footer className="border-t border-border/50 mt-12">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-            <p>Based on "A Total Unification of Engineering Loads via Moment Calculus" • Feb 2026</p>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-center text-sm text-muted-foreground md:text-left">
+            <div className="flex flex-col gap-1">
+              <p>Based on "A Total Unification of Engineering Loads via Moment Calculus" • Feb 2026</p>
+              <p className="text-xs">Public beta note: no analytics or telemetry is enabled in this build.</p>
+            </div>
             <p className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-success" />
               Physics Engine v1.0
@@ -224,6 +284,27 @@ const Index = () => {
     </div>
   );
 };
+
+function TabLoading({ activeTab }: { activeTab: ActiveTab }) {
+  return (
+    <div className="min-h-[600px] rounded-lg border border-border/50 bg-card/60 p-6">
+      <div className="mb-5 flex items-center gap-3">
+        <div className="h-2.5 w-2.5 animate-pulse rounded-full bg-primary" />
+        <div>
+          <div className="text-sm font-medium text-foreground">Loading {activeTab} lab</div>
+          <div className="text-xs text-muted-foreground">Preparing simulator module...</div>
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="space-y-3">
+          <div className="h-28 animate-pulse rounded-md bg-muted/40" />
+          <div className="h-40 animate-pulse rounded-md bg-muted/30" />
+        </div>
+        <div className="h-[360px] animate-pulse rounded-md bg-muted/30" />
+      </div>
+    </div>
+  );
+}
 
 function FeatureCard({
   icon,
