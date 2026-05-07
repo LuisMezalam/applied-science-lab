@@ -6,8 +6,10 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { ErrorBoundary } from "@/components/system/ErrorBoundary";
+import { getRouterBasename } from "@/lib/routerBase";
 
 const queryClient = new QueryClient();
+const routerBasename = getRouterBasename(import.meta.env.BASE_URL);
 
 const App = () => (
   <ErrorBoundary>
@@ -15,7 +17,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        <BrowserRouter basename={routerBasename}>
           <Routes>
             <Route path="/" element={<Index />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
